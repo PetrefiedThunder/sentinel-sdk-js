@@ -1,0 +1,52 @@
+{
+  "name": "sentinel-oversight",
+  "version": "0.1.0",
+  "description": "Human-in-the-loop approval for AI agent actions — one wrapper, magic-link approve/reject.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test tests/serializable.test.mjs",
+    "smoke": "node tests/smoke.mjs",
+    "demo": "node examples/demo.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "approval",
+    "human-in-the-loop",
+    "sentinel",
+    "agent-safety",
+    "llm",
+    "guardrails",
+    "oversight"
+  ],
+  "author": "Christopher Sellers / RegEngine, Inc.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PetrefiedThunder/sentinel-sdk-js"
+  },
+  "homepage": "https://pauseapi.app",
+  "bugs": "https://github.com/PetrefiedThunder/sentinel-sdk-js/issues",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}
