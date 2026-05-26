@@ -1,7 +1,9 @@
 # Sentinel SDK for JavaScript / TypeScript
 
 [![npm version](https://img.shields.io/npm/v/sentinel-oversight.svg)](https://www.npmjs.com/package/sentinel-oversight)
+[![Node](https://img.shields.io/badge/node-%E2%89%A518.17-brightgreen.svg)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Status](https://img.shields.io/badge/status-public%20beta-blue.svg)](https://pauseapi.app)
 
 **Human-in-the-loop approval for AI agents.**
 
