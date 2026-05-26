@@ -13,6 +13,10 @@
     "./langchain": {
       "import": "./dist/adapters/langchain.js",
       "types": "./dist/adapters/langchain.d.ts"
+    },
+    "./mastra": {
+      "import": "./dist/adapters/mastra.js",
+      "types": "./dist/adapters/mastra.d.ts"
     }
   },
   "files": [
