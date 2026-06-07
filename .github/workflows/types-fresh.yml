@@ -1,0 +1,34 @@
+name: types-fresh
+
+# Verify the generated OpenAPI types match what the live API exposes.
+# Catches forgotten `npm run gen:types` before customers hit a runtime
+# mismatch.
+
+on:
+  pull_request:
+    paths:
+      - 'src/generated/**'
+      - 'package.json'
+      - '.github/workflows/types-fresh.yml'
+  schedule:
+    # Daily 13:00 UTC catches "API shipped a field, SDK didn't notice"
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Regenerate types
+        run: npm run gen:types
+      - name: Diff
+        run: |
+          if ! git diff --exit-code src/generated/api.d.ts; then
+            echo "::error::Generated types are stale. Run 'npm run gen:types' locally and commit the diff."
+            exit 1
+          fi
