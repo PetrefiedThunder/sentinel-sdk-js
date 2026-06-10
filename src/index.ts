@@ -37,6 +37,12 @@ export interface OversightOptions {
   timeoutSeconds?: number;
   /** Override the function-name shown to approvers (defaults to fn.name). */
   functionName?: string;
+  /**
+   * Stripe-style idempotency key sent as the `Idempotency-Key` header on
+   * approval creation. A string is used as-is; a function is called once per
+   * invocation to produce the key.
+   */
+  idempotencyKey?: string | (() => string);
 }
 
 export interface ApprovalRecord {
@@ -165,10 +171,14 @@ export class SentinelClient {
     riskLevel?: RiskLevel;
     approvers?: string[];
     timeoutSeconds?: number;
+    idempotencyKey?: string;
   }): Promise<ApprovalRecord> {
     ensureJsonSerializable(opts.arguments);
     return this.request<ApprovalRecord>('/v1/approvals', {
       method: 'POST',
+      headers: opts.idempotencyKey
+        ? { 'Idempotency-Key': opts.idempotencyKey }
+        : {},
       body: JSON.stringify({
         function_name: opts.functionName,
         arguments: opts.arguments,
@@ -277,12 +287,17 @@ export class SentinelClient {
       const callArgs: Record<string, unknown> = isPlainObject
         ? (args[0] as Record<string, unknown>)
         : { args: args as unknown[] };
+      const idempotencyKey =
+        typeof opts.idempotencyKey === 'function'
+          ? opts.idempotencyKey()
+          : opts.idempotencyKey;
       const approval = await this.createApproval({
         functionName: fnName,
         arguments: callArgs,
         riskLevel: opts.riskLevel,
         approvers: opts.approvers,
         timeoutSeconds: opts.timeoutSeconds,
+        idempotencyKey,
       });
       const decision = await this.waitForDecision(
         approval.action_id,
