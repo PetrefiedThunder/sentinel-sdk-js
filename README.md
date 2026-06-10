@@ -90,6 +90,28 @@ try {
 }
 ```
 
+## Idempotency
+
+Pass `idempotencyKey` to make approval creation safe to retry — the same
+(tenant, key) replays the original response without creating duplicate
+approvals or firing duplicate notifications. Same key with a different body
+returns a 409. A string is used as-is; a function is called once per
+invocation.
+
+```typescript
+const wireTransfer = oversight(
+  { riskLevel: 'high', idempotencyKey: () => crypto.randomUUID() },
+  async (amountCents: number, recipient: string) => { /* ... */ }
+);
+
+// or directly:
+await client.createApproval({
+  functionName: 'wireTransfer',
+  arguments: { amountCents: 50_000_00 },
+  idempotencyKey: 'wire-2026-06-09-acct_xyz',
+});
+```
+
 ## Tenant settings
 
 ```typescript
