@@ -112,6 +112,21 @@ await client.createApproval({
 });
 ```
 
+## Listing & pagination
+
+`listApprovals` returns one page (`{ data, hasMore, nextCursor }`);
+`iterApprovals` walks every page for you. Audit events:
+`listAuditEventsPage` with the same shape.
+
+```typescript
+const page = await client.listApprovals({ status: 'pending', limit: 20 });
+// page.data, page.hasMore, page.nextCursor
+
+for await (const approval of client.iterApprovals({ status: 'pending' })) {
+  console.log(approval.action_id, approval.status);
+}
+```
+
 ## Tenant settings
 
 ```typescript

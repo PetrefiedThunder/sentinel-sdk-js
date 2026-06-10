@@ -45,6 +45,13 @@ export interface OversightOptions {
   idempotencyKey?: string | (() => string);
 }
 
+/** One page of results from a cursor-paginated list endpoint. */
+export interface PageResult<T> {
+  data: T[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
 export interface ApprovalRecord {
   action_id: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -114,6 +121,32 @@ export function ensureJsonSerializable(value: unknown): void {
         `objects/arrays/strings/numbers/booleans/null before the call.`
     );
   }
+}
+
+/** Wire shape of a paginated list response. */
+interface PageEnvelope<T> {
+  data: T[];
+  has_more: boolean;
+  next_cursor: string | null;
+}
+
+function toPageResult<T>(page: PageEnvelope<T>): PageResult<T> {
+  return {
+    data: page.data,
+    hasMore: page.has_more,
+    nextCursor: page.next_cursor,
+  };
+}
+
+function buildQuery(
+  params: Record<string, string | number | undefined>
+): string {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue;
+    parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+  }
+  return parts.length ? `?${parts.join('&')}` : '';
 }
 
 // ── Client ─────────────────────────────────────────────────────────
@@ -189,6 +222,43 @@ export class SentinelClient {
     });
   }
 
+  /**
+   * List approvals one page at a time (cursor pagination). Always sends
+   * `limit` (default 50) so the server returns the paginated envelope.
+   */
+  async listApprovals(opts?: {
+    status?: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<PageResult<ApprovalRecord>> {
+    const qs = buildQuery({
+      status: opts?.status,
+      limit: opts?.limit ?? 50,
+      cursor: opts?.cursor,
+    });
+    const page = await this.request<PageEnvelope<ApprovalRecord>>(
+      `/v1/approvals${qs}`
+    );
+    return toPageResult(page);
+  }
+
+  /**
+   * Iterate over all approvals, transparently following nextCursor across
+   * pages until the server reports hasMore=false.
+   */
+  async *iterApprovals(opts?: {
+    status?: string;
+    limit?: number;
+  }): AsyncGenerator<ApprovalRecord> {
+    let cursor: string | undefined;
+    while (true) {
+      const page = await this.listApprovals({ ...opts, cursor });
+      for (const item of page.data) yield item;
+      if (!page.hasMore || page.nextCursor === null) return;
+      cursor = page.nextCursor;
+    }
+  }
+
   async getApproval(actionId: string): Promise<ApprovalRecord> {
     return this.request<ApprovalRecord>(
       `/v1/approvals/${encodeURIComponent(actionId)}`
@@ -252,6 +322,27 @@ export class SentinelClient {
       ? `?action_id=${encodeURIComponent(actionId)}`
       : '';
     return this.request<unknown[]>(`/v1/audit-events${qs}`);
+  }
+
+  /**
+   * List audit events one page at a time (cursor pagination). Unlike the
+   * legacy listAuditEvents(), this always sends `limit` (default 50) so the
+   * server returns the paginated envelope.
+   */
+  async listAuditEventsPage(opts?: {
+    actionId?: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<PageResult<Record<string, unknown>>> {
+    const qs = buildQuery({
+      action_id: opts?.actionId,
+      limit: opts?.limit ?? 50,
+      cursor: opts?.cursor,
+    });
+    const page = await this.request<PageEnvelope<Record<string, unknown>>>(
+      `/v1/audit-events${qs}`
+    );
+    return toPageResult(page);
   }
 
   // ---- the decorator surface ----
