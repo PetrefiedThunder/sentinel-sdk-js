@@ -20,3 +20,16 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+
+  typecheck:
+    # Strict-tsc lint gate. The repo has no ESLint config and relies on
+    # tsconfig `strict` + `noUncheckedIndexedAccess`, so `tsc --noEmit` is
+    # the minimal type-check parity gate matching the py/go SDK lint jobs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm run typecheck
