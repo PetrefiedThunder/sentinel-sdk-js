@@ -1,0 +1,23 @@
+# Sentinel SDK (JS) gitleaks configuration (auto-detected by `gitleaks git .` in CI).
+# Extends the upstream default ruleset; allowlists secret-SHAPED dummy values that
+# live in test fixtures and documentation examples, NOT real secrets. Real secrets
+# never belong in the repo — they live in env vars / CI secrets — so the gate stays
+# strict for all source paths (verified: a fake sk_live_ key in src/ still fails the
+# scan).
+title = "Sentinel SDK (JS) gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures and doc examples hold dummy secret-shaped values, not real secrets"
+paths = [
+  # Tests live in tests/ as *.test.mjs and hold dummy secret-shaped fixtures.
+  '''tests/.*''',
+]
+# Doc-example idempotency key in README ('wire-2026-06-09-acct_xyz') trips the
+# generic-api-key entropy rule. It is a sample value, not a credential. Scoped to
+# the exact string so the README still gets scanned for everything else.
+regexes = [
+  '''wire-2026-06-09-acct_xyz''',
+]
