@@ -113,10 +113,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Approvals */
+        /**
+         * List Approvals
+         * @description List approvals.
+         *
+         *     Backward-compatible: with no `limit` and no `cursor`, returns the legacy
+         *     top-200 bare array. With either present, returns the cursor-paginated
+         *     envelope {data, has_more, next_cursor}.
+         */
         get: operations["list_approvals_v1_approvals_get"];
         put?: never;
-        /** Create */
+        /**
+         * Create
+         * @description Create an approval. Pass `Idempotency-Key: <opaque>` to make retries
+         *     safe — the same key replays the original response without firing
+         *     duplicate emails or creating duplicate rows.
+         */
         post: operations["create_v1_approvals_post"];
         delete?: never;
         options?: never;
@@ -238,11 +250,64 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Events */
+        /**
+         * List Events
+         * @description List audit events.
+         *
+         *     Backward-compatible: no limit + no cursor → legacy top-100 bare array.
+         *     Either present → cursor-paginated envelope {data, has_more, next_cursor}.
+         */
         get: operations["list_events_v1_audit_events_get"];
         put?: never;
         /** Emit */
         post: operations["emit_v1_audit_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/audit-events/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Verify Chain
+         * @description Walk the tenant's full audit hash chain and prove tamper-evidence.
+         *
+         *     Recomputes each event's hash from its stored payload (same computation as
+         *     app/services/audit_log.py) and checks the prev_hash linkage. Read-only.
+         */
+        get: operations["verify_chain_v1_audit_events_verify_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/audit-events.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Csv
+         * @description Stream audit events as CSV for offline analysis / compliance reviews.
+         *
+         *     Customers ask for this constantly during procurement — they want to ingest
+         *     the audit log into their own SIEM. Keep the column set stable; downstream
+         *     parsers depend on the header row.
+         */
+        get: operations["export_csv_v1_audit_events_csv_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -337,9 +402,35 @@ export interface paths {
         };
         /**
          * List Deliveries
-         * @description Inspect the most-recent webhook deliveries for this tenant.
+         * @description Inspect webhook deliveries for this tenant.
+         *
+         *     Backward-compatible: no limit + no cursor → legacy top-50 bare array.
+         *     Either present → cursor-paginated envelope {data, has_more, next_cursor}.
          */
         get: operations["list_deliveries_v1_webhooks_deliveries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/status/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * History
+         * @description Daily uptime aggregates for the last `days` days, ascending by date.
+         *
+         *     Aggregation happens in Python — probe volume is tiny (a few per minute
+         *     at most) and this sidesteps SQLite/Postgres date-trunc dialect drift.
+         */
+        get: operations["history_v1_status_history_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -524,6 +615,11 @@ export interface components {
             name: string;
             /** Email */
             email: string;
+            /**
+             * Mode
+             * @default live
+             */
+            mode: string;
         };
         /** TokenDecisionRequest */
         TokenDecisionRequest: {
@@ -759,6 +855,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string | null;
+                limit?: number | null;
+                cursor?: string | null;
             };
             header: {
                 authorization: string;
@@ -792,6 +890,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                "Idempotency-Key"?: string | null;
                 authorization: string;
             };
             path?: never;
@@ -1068,7 +1167,8 @@ export interface operations {
             query?: {
                 /** @description Filter to a single action_id */
                 action_id?: string | null;
-                limit?: number;
+                limit?: number | null;
+                cursor?: string | null;
             };
             header: {
                 authorization: string;
@@ -1112,6 +1212,72 @@ export interface operations {
                 "application/json": components["schemas"]["AuditEventCreate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_chain_v1_audit_events_verify_get: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_csv_v1_audit_events_csv_get: {
+        parameters: {
+            query?: {
+                /** @description Filter to a single action_id */
+                action_id?: string | null;
+                limit?: number;
+            };
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -1276,7 +1442,8 @@ export interface operations {
         parameters: {
             query?: {
                 endpoint_id?: string | null;
-                limit?: number;
+                limit?: number | null;
+                cursor?: string | null;
             };
             header: {
                 authorization: string;
@@ -1293,6 +1460,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    history_v1_status_history_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
                 };
             };
             /** @description Validation Error */
