@@ -1,6 +1,6 @@
 # Sentinel SDK for JavaScript / TypeScript
 
-[![npm version](https://img.shields.io/npm/v/sentinel-oversight.svg)](https://www.npmjs.com/package/sentinel-oversight)
+[![npm version](https://img.shields.io/badge/npm-coming%20soon-lightgrey.svg)](https://github.com/PetrefiedThunder/sentinel-sdk-js)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518.17-brightgreen.svg)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/status-public%20beta-blue.svg)](https://pauseapi.app)
@@ -10,7 +10,18 @@
 One wrapper. Your function pauses execution, a human gets an email with
 Approve/Reject buttons, and the function only runs once they click Approve.
 
+> ⚠️ **The JS/TS SDK is pre-release — not yet published on npm.**
+> Install directly from git until the first npm release:
+>
+> ```bash
+> npm install github:PetrefiedThunder/sentinel-sdk-js
+> ```
+>
+> `npm install sentinel-oversight` (below) will work once the package is
+> published.
+
 ```bash
+# coming soon — not yet on npm
 npm install sentinel-oversight
 ```
 
