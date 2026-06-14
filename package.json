@@ -17,6 +17,10 @@
     "./mastra": {
       "import": "./dist/adapters/mastra.js",
       "types": "./dist/adapters/mastra.d.ts"
+    },
+    "./ai-sdk": {
+      "import": "./dist/adapters/ai-sdk.js",
+      "types": "./dist/adapters/ai-sdk.d.ts"
     }
   },
   "files": [
@@ -26,7 +30,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/pagination.test.mjs",
+    "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs",
     "smoke": "node tests/smoke.mjs",
     "demo": "node examples/demo.mjs",
     "gen:types": "openapi-typescript https://api.pauseapi.app/openapi.json -o src/generated/api.d.ts",
@@ -53,6 +57,14 @@
   "bugs": "https://github.com/PetrefiedThunder/sentinel-sdk-js/issues",
   "engines": {
     "node": ">=18.17"
+  },
+  "peerDependencies": {
+    "ai": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ai": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
