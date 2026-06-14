@@ -7,9 +7,16 @@ name: release
 # Why npmPublish=false in .releaserc.json: publish.yml handles npm via
 # Trusted Publishing (OIDC). semantic-release just tags; publish.yml ships.
 
+# MANUAL TRIGGER ONLY. Running this workflow creates a version tag, which
+# triggers publish.yml to ship to npm (IRREVERSIBLE). It is intentionally
+# gated behind workflow_dispatch so merging changes never auto-publishes.
+#
+# To restore automatic release-on-merge, re-add the push trigger:
+#   on:
+#     push:
+#       branches: [main]
+#     workflow_dispatch:
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -44,9 +51,10 @@ jobs:
       - name: semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npx --yes semantic-release \
-            -p semantic-release \
-            -p @semantic-release/changelog \
-            -p @semantic-release/git \
-            -p conventional-changelog-conventionalcommits
+        # All plugins (incl. commit-analyzer, release-notes-generator, npm,
+        # github) and the conventionalcommits preset are pinned in
+        # devDependencies and installed by `npm ci`, so they resolve from
+        # the local node_modules. Do NOT use `npx --yes ... -p` here: that
+        # installed only a subset into an isolated cache that semantic-release
+        # could not resolve, causing "Cannot find module" failures.
+        run: npx semantic-release
