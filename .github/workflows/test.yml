@@ -1,0 +1,22 @@
+name: test
+
+# Build + unit tests on every pull request and push to main. Previously the
+# suite ran only on tag-publish and push-to-main (release.yml), so PRs could
+# merge with failing tests; this gates them before merge. Tests import from
+# dist/, so the build must run first.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
