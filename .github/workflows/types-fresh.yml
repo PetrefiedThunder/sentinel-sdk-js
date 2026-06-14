@@ -32,38 +32,3 @@ jobs:
             echo "::error::Generated types are stale. Run 'npm run gen:types' locally and commit the diff."
             exit 1
           fi
-
-  security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0   # gitleaks needs full history to scan past commits
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-
-      - run: npm ci
-
-      # Dependency advisory scan against the npm advisory DB. Day-one policy:
-      # continue-on-error so a newly disclosed advisory in an existing/transitive
-      # dependency does NOT instantly red-line main for the whole team. The result
-      # stays visible in the job log; we triage and pin/upgrade from there.
-      - name: npm audit (dependency advisories)
-        continue-on-error: true
-        run: npm audit --audit-level=high
-
-      # Secret scan. Hard gate: a clean repo must stay clean. Local dry run on
-      # this branch found no leaks (with the .gitleaks.toml allowlist for the
-      # README doc-example value), so any hit here is a real regression that
-      # should block the merge.
-      # Run the gitleaks binary directly rather than gitleaks-action: the action
-      # calls the GitHub API to post PR summaries and fails with "Resource not
-      # accessible by integration" without a permissions block. The binary needs
-      # no API access and is a clean hard gate (exit 1 on leak). gitleaks
-      # auto-detects .gitleaks.toml at the repo root.
-      - name: gitleaks (secret scan)
-        run: |
-          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar -xz -C /tmp gitleaks
-          /tmp/gitleaks git . --redact --no-banner

@@ -1,0 +1,38 @@
+name: security
+
+# Runs on EVERY pull request (no path filter) + pushes to main, so the secret
+# scan and dependency audit gate all changes — not just ones touching certain
+# paths. (The job previously lived in the path-filtered types-fresh.yml.)
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # gitleaks needs full history to scan past commits
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - run: npm ci
+
+      # Dependency advisory scan. Day-one policy: continue-on-error so a newly
+      # disclosed advisory in an existing/transitive dep does not red-line main.
+      - name: npm audit (dependency advisories)
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+      # Secret scan (hard gate). Run the gitleaks BINARY, not gitleaks-action:
+      # the action calls the GitHub API to post PR summaries and fails with
+      # "Resource not accessible by integration" without a permissions block.
+      # gitleaks auto-detects .gitleaks.toml at the repo root.
+      - name: gitleaks (secret scan)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar -xz -C /tmp gitleaks
+          /tmp/gitleaks git . --redact --no-banner
