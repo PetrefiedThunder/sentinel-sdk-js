@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 0   # gitleaks needs full history to scan past commits
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: '24'
 
