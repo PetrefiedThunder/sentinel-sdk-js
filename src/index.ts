@@ -34,6 +34,11 @@ export interface SentinelConfig {
 export interface OversightOptions {
   riskLevel?: RiskLevel;
   approvers?: string[];
+  /**
+   * Approval timeout. The API requires a whole number of seconds, so a
+   * fractional value is rounded to the nearest second (Math.round) before
+   * being sent. Defaults to the client's `timeoutSeconds` (300).
+   */
   timeoutSeconds?: number;
   /** Override the function-name shown to approvers (defaults to fn.name). */
   functionName?: string;
@@ -138,6 +143,19 @@ function toPageResult<T>(page: PageEnvelope<T>): PageResult<T> {
   };
 }
 
+/**
+ * Coerce an approval timeout to a whole number of seconds.
+ *
+ * The live API (`/v1/approvals` → ApprovalCreate.timeout_seconds) types this
+ * field as `integer` and returns HTTP 422 on a fractional value. Callers may
+ * naturally pass a float (e.g. a computed duration), so we round to the
+ * nearest second with Math.round before sending — 30.4 → 30, 30.5 → 31 — and
+ * clamp to a minimum of 1 so a sub-second value never becomes 0.
+ */
+function toIntTimeoutSeconds(value: number): number {
+  return Math.max(1, Math.round(value));
+}
+
 function buildQuery(
   params: Record<string, string | number | undefined>
 ): string {
@@ -203,6 +221,7 @@ export class SentinelClient {
     arguments: unknown;
     riskLevel?: RiskLevel;
     approvers?: string[];
+    /** Whole seconds; a fraction is rounded to the nearest second. */
     timeoutSeconds?: number;
     idempotencyKey?: string;
   }): Promise<ApprovalRecord> {
@@ -217,7 +236,10 @@ export class SentinelClient {
         arguments: opts.arguments,
         risk_level: opts.riskLevel ?? 'medium',
         approvers: opts.approvers ?? [],
-        timeout_seconds: opts.timeoutSeconds ?? this.defaultTimeoutSeconds,
+        // API types timeout_seconds as integer and 422s on a fraction.
+        timeout_seconds: toIntTimeoutSeconds(
+          opts.timeoutSeconds ?? this.defaultTimeoutSeconds
+        ),
       }),
     });
   }
