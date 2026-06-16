@@ -82,7 +82,7 @@
     "@semantic-release/github": "^11.0.6",
     "@semantic-release/npm": "^12.0.2",
     "@semantic-release/release-notes-generator": "^14.1.1",
-    "@types/node": "^22.0.0",
+    "@types/node": "^25.9.3",
     "conventional-changelog-conventionalcommits": "^9.3.1",
     "openapi-typescript": "^7.4.0",
     "semantic-release": "^25.0.5",
