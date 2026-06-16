@@ -86,6 +86,6 @@
     "conventional-changelog-conventionalcommits": "^9.3.1",
     "openapi-typescript": "^7.4.0",
     "semantic-release": "^25.0.5",
-    "typescript": "^5.5.0"
+    "typescript": "^6.0.3"
   }
 }
