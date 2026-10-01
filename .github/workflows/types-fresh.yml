@@ -9,6 +9,7 @@ on:
     paths:
       - 'src/generated/**'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/types-fresh.yml'
   schedule:
     # Daily 13:00 UTC catches "API shipped a field, SDK didn't notice"
