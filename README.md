@@ -95,6 +95,15 @@ errors and malformed approvals block the tool. It provides no fail-open option.
 Do not disable its `raiseError`, `awaitHandlers` or tool callback flags. The
 required integration suite tests `@langchain/core` 1.2.14 on Node 20+.
 
+`client.wrap` / `oversight` use one local deadline across approval creation and
+waiting. A late decision cannot start the function. Individual `createApproval`
+and `waitForDecision` calls also bound network and response-body waits and abort
+timed-out requests. `createApproval({ ..., signal })` and
+`waitForDecision(actionId, timeoutSeconds, signal)` accept optional cancellation
+signals. A creation timeout has an empty `actionId` because no ID was received.
+The deadline gates the start of the approved function; it does not cancel work
+that has already started.
+
 ```typescript
 import {
   SentinelError,

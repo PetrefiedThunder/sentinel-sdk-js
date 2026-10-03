@@ -116,3 +116,33 @@ for (const stage of ['creation', 'decision']) {
     });
   }
 }
+
+for (const stage of ['creation', 'decision']) {
+  test(`BE-002 real LangChain stalled ${stage} times out without execution`, async () => {
+    let executions = 0;
+    let release;
+    let signal;
+    globalThis.fetch = async (_url, init) => {
+      if (stage === 'decision' && init.method === 'POST') {
+        return Response.json({ action_id: 'qa-action', status: 'pending', decision: 'pending' });
+      }
+      signal = init.signal;
+      return new Promise((resolve) => {
+        release = () => resolve(Response.json({ action_id: 'qa-action', status: 'approved', decision: 'approved' }));
+      });
+    };
+    const handler = new SentinelCallbackHandler({
+      timeoutSeconds: 0.015,
+      client: new SentinelClient({ apiKey: 'qa-synthetic', apiUrl: 'http://127.0.0.1:1' }),
+    });
+    const tool = new DynamicTool({
+      name: 'qa_action', description: 'Local counter',
+      func: async () => { executions++; return 'local-result'; },
+    });
+    await assert.rejects(() => tool.invoke('input', { callbacks: [handler] }), ApprovalTimeout);
+    assert.equal(signal.aborted, true);
+    release();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(executions, 0);
+  });
+}

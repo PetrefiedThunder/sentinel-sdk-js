@@ -191,6 +191,53 @@ function buildQuery(
   return parts.length ? `?${parts.join('&')}` : '';
 }
 
+async function withApprovalDeadline<T>(
+  timeoutSeconds: number,
+  actionId: () => string,
+  operation: (signal: AbortSignal) => Promise<T>,
+  parentSignal?: AbortSignal
+): Promise<T> {
+  if (!Number.isFinite(timeoutSeconds) || timeoutSeconds < 0) {
+    throw new TypeError('Approval timeout must be a finite non-negative number');
+  }
+  parentSignal?.throwIfAborted();
+  const deadline = Date.now() + timeoutSeconds * 1000;
+  const controller = new AbortController();
+  const timeoutError = () => new ApprovalTimeout(actionId(), timeoutSeconds);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
+  const expired = new Promise<never>((_resolve, reject) => {
+    onAbort = () => {
+      controller.abort(parentSignal!.reason);
+      reject(parentSignal!.reason);
+    };
+    if (parentSignal?.aborted) onAbort();
+    else parentSignal?.addEventListener('abort', onAbort, { once: true });
+    const expire = () => {
+      const remaining = deadline - Date.now();
+      if (remaining > 0) {
+        timer = setTimeout(expire, Math.min(remaining, 2 ** 31 - 1));
+        return;
+      }
+      const error = timeoutError();
+      controller.abort(error);
+      reject(error);
+    };
+    timer = setTimeout(expire, Math.min(timeoutSeconds * 1000, 2 ** 31 - 1));
+  });
+  try {
+    controller.signal.throwIfAborted();
+    if (Date.now() >= deadline) throw timeoutError();
+    const result = await Promise.race([operation(controller.signal), expired]);
+    controller.signal.throwIfAborted();
+    if (Date.now() >= deadline) throw timeoutError();
+    return result;
+  } finally {
+    clearTimeout(timer);
+    if (onAbort) parentSignal?.removeEventListener('abort', onAbort);
+  }
+}
+
 // ── Client ─────────────────────────────────────────────────────────
 export class SentinelClient {
   private readonly apiKey: string;
@@ -213,6 +260,7 @@ export class SentinelClient {
     path: string,
     init: RequestInit = {}
   ): Promise<T> {
+    init.signal?.throwIfAborted();
     const url = `${this.apiUrl}${path}`;
     const r = await fetch(url, {
       ...init,
@@ -248,24 +296,32 @@ export class SentinelClient {
     /** Whole seconds; a fraction is rounded to the nearest second. */
     timeoutSeconds?: number;
     idempotencyKey?: string;
+    /** Optional cancellation; a local approval timeout is still enforced. */
+    signal?: AbortSignal;
   }): Promise<ApprovalRecord> {
     const args = snapshotJson(opts.arguments);
-    return this.request<ApprovalRecord>('/v1/approvals', {
-      method: 'POST',
-      headers: opts.idempotencyKey
-        ? { 'Idempotency-Key': opts.idempotencyKey }
-        : {},
-      body: JSON.stringify({
-        function_name: opts.functionName,
-        arguments: args,
-        risk_level: opts.riskLevel ?? 'medium',
-        approvers: opts.approvers ?? [],
-        // API types timeout_seconds as integer and 422s on a fraction.
-        timeout_seconds: toIntTimeoutSeconds(
-          opts.timeoutSeconds ?? this.defaultTimeoutSeconds
-        ),
+    return withApprovalDeadline(
+      opts.timeoutSeconds ?? this.defaultTimeoutSeconds,
+      () => '', // No action ID exists until creation completes.
+      (signal) => this.request<ApprovalRecord>('/v1/approvals', {
+        method: 'POST',
+        signal,
+        headers: opts.idempotencyKey
+          ? { 'Idempotency-Key': opts.idempotencyKey }
+          : {},
+        body: JSON.stringify({
+          function_name: opts.functionName,
+          arguments: args,
+          risk_level: opts.riskLevel ?? 'medium',
+          approvers: opts.approvers ?? [],
+          // API types timeout_seconds as integer and 422s on a fraction.
+          timeout_seconds: toIntTimeoutSeconds(
+            opts.timeoutSeconds ?? this.defaultTimeoutSeconds
+          ),
       }),
-    });
+      }),
+      opts.signal
+    );
   }
 
   /**
@@ -319,33 +375,54 @@ export class SentinelClient {
    */
   async waitForDecision(
     actionId: string,
-    timeoutSeconds?: number
+    timeoutSeconds?: number,
+    signal?: AbortSignal
   ): Promise<ApprovalRecord> {
     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
     const deadline = Date.now() + timeout * 1000;
-    while (true) {
-      const remaining = Math.max(
-        1,
-        Math.min(30, Math.floor((deadline - Date.now()) / 1000))
-      );
-      let data: ApprovalRecord;
-      try {
-        data = await this.request<ApprovalRecord>(
-          `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`
+    return withApprovalDeadline(timeout, () => actionId, async (requestSignal) => {
+      while (true) {
+        requestSignal.throwIfAborted();
+        if (Date.now() >= deadline) throw new ApprovalTimeout(actionId, timeout);
+        const remaining = Math.max(
+          1,
+          Math.min(30, Math.floor((deadline - Date.now()) / 1000))
         );
-      } catch (e) {
-        if (e instanceof SentinelAPIError && e.statusCode === 404) {
-          data = await this.getApproval(actionId);
-        } else {
-          throw e;
+        let data: ApprovalRecord;
+        try {
+          data = await this.request<ApprovalRecord>(
+            `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`,
+            { signal: requestSignal }
+          );
+        } catch (e) {
+          if (e instanceof SentinelAPIError && e.statusCode === 404) {
+            data = await this.request<ApprovalRecord>(
+              `/v1/approvals/${encodeURIComponent(actionId)}`, { signal: requestSignal }
+            );
+          } else {
+            throw e;
+          }
         }
+        requestSignal.throwIfAborted();
+        if (Date.now() >= deadline) {
+          throw new ApprovalTimeout(actionId, timeout);
+        }
+        if (
+          !data || data.action_id !== actionId ||
+          !['pending', 'approved', 'rejected'].includes(data.status ?? data.decision) ||
+          (data.status !== undefined && !['pending', 'approved', 'rejected'].includes(data.status)) ||
+          (data.decision !== undefined && !['pending', 'approved', 'rejected'].includes(data.decision))
+        ) {
+          throw new SentinelError('Invalid approval decision response');
+        }
+        if (data.status === 'rejected' || data.decision === 'rejected') return data;
+        if (data.status !== undefined && data.decision !== undefined && data.status !== data.decision) {
+          throw new SentinelError('Conflicting approval decision response');
+        }
+        const status = data.status ?? data.decision;
+        if (status === 'approved') return data;
       }
-      const status = data.status ?? data.decision;
-      if (status === 'approved' || status === 'rejected') return data;
-      if (Date.now() >= deadline) {
-        throw new ApprovalTimeout(actionId, timeout);
-      }
-    }
+    }, signal);
   }
 
   // ---- tenant ----
@@ -429,24 +506,34 @@ export class SentinelClient {
         typeof opts.idempotencyKey === 'function'
           ? opts.idempotencyKey()
           : opts.idempotencyKey;
-      const approval = await this.createApproval({
-        functionName: fnName,
-        arguments: callArgs,
-        riskLevel: opts.riskLevel,
-        approvers: opts.approvers,
-        timeoutSeconds: opts.timeoutSeconds,
-        idempotencyKey,
+      const timeout = opts.timeoutSeconds ?? this.defaultTimeoutSeconds;
+      const deadline = Date.now() + timeout * 1000;
+      let actionId = '';
+      const { approval, decision } = await withApprovalDeadline(timeout, () => actionId, async (signal) => {
+        const approval = await this.createApproval({
+          functionName: fnName,
+          arguments: callArgs,
+          riskLevel: opts.riskLevel,
+          approvers: opts.approvers,
+          timeoutSeconds: opts.timeoutSeconds,
+          idempotencyKey,
+          signal,
+        });
+        actionId = approval.action_id;
+        const decision = await this.waitForDecision(
+          approval.action_id,
+          opts.timeoutSeconds,
+          signal
+        );
+        return { approval, decision };
       });
-      const decision = await this.waitForDecision(
-        approval.action_id,
-        opts.timeoutSeconds
-      );
       if (decision.decision === 'rejected' || decision.status === 'rejected') {
         throw new ApprovalRejected(
           (decision.reason as string) || 'Approval rejected',
           approval.action_id
         );
       }
+      if (Date.now() >= deadline) throw new ApprovalTimeout(actionId, timeout);
       return await fn(...approvedArgs);
     };
   }

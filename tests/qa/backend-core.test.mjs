@@ -227,7 +227,7 @@ test('BE-001: positional arguments are copied before idempotency callbacks can m
   assert.deepEqual(value, { nested: [1, 2, 999] });
 });
 
-test('BE-002: approval received after deadline must not execute the action', { ...knownDefect('BE-002 local deadline is not enforced on terminal response') }, async () => {
+test('BE-002: approval received after deadline must not execute the action', async () => {
   let now = 1000;
   Date.now = () => now;
   respond(({ init }) => {
@@ -241,7 +241,7 @@ test('BE-002: approval received after deadline must not execute the action', { .
   assert.ok(result instanceof ApprovalTimeout);
 });
 
-test('BE-002: a stalled request must settle at the approval deadline', { ...knownDefect('BE-002 fetch has no deadline or abort signal') }, async () => {
+test('BE-002: a stalled request must settle at the approval deadline', async () => {
   let release;
   respond(() => new Promise((resolve) => { release = () => resolve(json(approved)); }));
   const result = makeClient().waitForDecision('qa-action', 0.01).then(
@@ -253,6 +253,88 @@ test('BE-002: a stalled request must settle at the approval deadline', { ...know
   release();
   await result;
   assert.equal(observed, 'timeout');
+});
+
+for (const stage of ['creation', 'decision', 'body', 'fallback']) {
+  test(`BE-002: stalled ${stage} is aborted and cannot execute after a late response`, async () => {
+    let release;
+    let stalledSignal;
+    respond(({ url, init }) => {
+      if (stage !== 'creation' && init.method === 'POST') return json(pending);
+      if (stage === 'fallback' && url.includes('/wait?')) return json({ detail: 'No wait route' }, 404);
+      stalledSignal = init.signal;
+      const stalled = new Promise((resolve) => { release = () => resolve(stage === 'body' ? approved : json(approved)); });
+      return stage === 'body' ? { ok: true, json: () => stalled } : stalled;
+    });
+    let executions = 0;
+    const result = makeClient().wrap({ timeoutSeconds: 0.015 }, () => ++executions)();
+    await assert.rejects(result, ApprovalTimeout);
+    assert.equal(stalledSignal.aborted, true);
+    const count = requests.length;
+    release();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(executions, 0);
+    assert.equal(requests.length, count, 'no follow-up I/O after deadline');
+  });
+}
+
+test('BE-002: creation and polling share one wrapper deadline', async () => {
+  let now = 1000;
+  Date.now = () => now;
+  respond(({ init }) => {
+    now = init.method === 'POST' ? 1700 : 2100;
+    return json(init.method === 'POST' ? pending : approved);
+  });
+  let executions = 0;
+  await assert.rejects(makeClient().wrap({ timeoutSeconds: 1 }, () => ++executions)(), ApprovalTimeout);
+  assert.equal(executions, 0);
+});
+
+test('BE-002: standalone creation has a deadline and pre-aborted requests do no I/O', async () => {
+  let signal;
+  respond(({ init }) => { signal = init.signal; return new Promise(() => {}); });
+  await assert.rejects(makeClient().createApproval({ functionName: 'qa', arguments: {}, timeoutSeconds: 0.01 }), ApprovalTimeout);
+  assert.equal(signal.aborted, true);
+  requests.length = 0;
+  const controller = new AbortController();
+  controller.abort(new Error('Synthetic cancellation'));
+  await assert.rejects(makeClient().createApproval({ functionName: 'qa', arguments: {}, signal: controller.signal }), /Synthetic cancellation/);
+  await assert.rejects(makeClient().waitForDecision('qa-action', 1, controller.signal), /Synthetic cancellation/);
+  assert.equal(requests.length, 0);
+});
+
+test('BE-002: invalid or expired timeout fails without network I/O', async () => {
+  for (const timeoutSeconds of [NaN, Infinity, -1, 0]) {
+    await assert.rejects(makeClient().wrap({ timeoutSeconds }, () => assert.fail('must not execute'))());
+  }
+  assert.equal(requests.length, 0);
+});
+
+test('BE-002: long approval windows do not overflow the Node timer', async () => {
+  respond(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return json(approved);
+  });
+  assert.deepEqual(await makeClient().waitForDecision('qa-action', 30 * 24 * 3600), approved);
+});
+
+test('BE-002: in-flight parent cancellation aborts transport with the original reason', async () => {
+  const controller = new AbortController();
+  const reason = new Error('Synthetic cancellation');
+  let signal;
+  respond(({ init }) => { signal = init.signal; return new Promise(() => {}); });
+  const result = makeClient().waitForDecision('qa-action', 30, controller.signal);
+  controller.abort(reason);
+  await assert.rejects(result, (error) => error === reason);
+  assert.equal(signal.aborted, true);
+  assert.equal(signal.reason, reason);
+});
+
+test('BE-002: malformed decision records fail closed instead of spinning until timeout', async () => {
+  for (const record of [null, {}, { ...approved, action_id: 'other' }, { ...approved, decision: 'pending' }, { ...approved, status: 'invalid' }]) {
+    respond(({ init }) => json(init.method === 'POST' ? pending : record));
+    await assert.rejects(makeClient().wrap({}, () => assert.fail('must not execute'))());
+  }
 });
 
 test('BE-003: lossy non-JSON arguments must fail before approval or execution', async () => {
