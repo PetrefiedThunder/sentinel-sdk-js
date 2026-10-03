@@ -33,7 +33,7 @@ import { configure, oversight } from 'sentinel-oversight';
 configure({ apiKey: process.env.SENTINEL_API_KEY! });
 
 const wireTransfer = oversight(
-  { riskLevel: 'high', approvers: ['alice@acme.com'] },
+  { functionName: 'wireTransfer', riskLevel: 'high', approvers: ['alice@acme.com'] },
   async (amountCents: number, recipient: string) => {
     return stripe.transfers.create({
       amount: amountCents,
@@ -50,6 +50,9 @@ await wireTransfer(50_000_00, 'acct_acme_corp');
 // 4. On Reject  → ApprovalRejected thrown.
 // 5. On timeout → ApprovalTimeout thrown.
 ```
+
+Set `functionName` explicitly for anonymous callbacks or minified code so
+approvers can identify the operation.
 
 ## What you get
 

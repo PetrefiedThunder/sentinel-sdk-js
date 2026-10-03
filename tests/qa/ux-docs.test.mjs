@@ -129,9 +129,7 @@ test('public VERSION export supplies the contributor version-report workaround',
   assert.equal(result.stdout.trim(), sdk.VERSION);
 });
 
-test('UX-001 README quickstart should send a recognizable action name', {
-  ...knownDefect('UX-001: inline anonymous callback is sent as function_name anonymous'),
-}, async () => {
+test('UX-001 README quickstart should send a recognizable action name', async () => {
   await quickstart({ transfers: { create: async () => ({ id: 'synthetic-receipt' }) } })();
   assert.equal(requests[0].body.function_name, 'wireTransfer');
 });
