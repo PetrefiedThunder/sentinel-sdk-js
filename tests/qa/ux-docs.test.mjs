@@ -134,9 +134,7 @@ test('UX-001 README quickstart should send a recognizable action name', async ()
   assert.equal(requests[0].body.function_name, 'wireTransfer');
 });
 
-test('UX-002 README Errors block should propagate transport failures', {
-  ...knownDefect('UX-002: the catch example silently swallows errors outside three listed classes'),
-}, async () => {
+test('UX-002 README Errors block should propagate transport failures', async () => {
   const client = new sdk.SentinelClient({ apiKey: 'synthetic-noncredential', apiUrl: 'http://127.0.0.1:1' });
   const transportError = new TypeError('Synthetic connection failure');
   globalThis.fetch = async () => { throw transportError; };
@@ -147,9 +145,7 @@ test('UX-002 README Errors block should propagate transport failures', {
   await assert.rejects(run, (error) => error === transportError);
 });
 
-test('UX-002 README Errors block should propagate the approved business operation failure', {
-  ...knownDefect('UX-002: a payment error after approval also vanishes in the example catch'),
-}, async () => {
+test('UX-002 README Errors block should propagate the approved business operation failure', async () => {
   const client = new sdk.SentinelClient({ apiKey: 'synthetic-noncredential', apiUrl: 'http://127.0.0.1:1' });
   const operationError = new Error('Synthetic payment failure');
   const run = program('Errors', {

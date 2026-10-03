@@ -125,9 +125,14 @@ try {
     console.log('No decision in time:', e.actionId);
   } else if (e instanceof SentinelAPIError) {
     console.log(`API ${e.statusCode}:`, e.message);
+  } else {
+    throw e;
   }
 }
 ```
+
+Native transport errors and failures from the approved function also propagate
+through the wrapped call. Rethrow errors that the application does not handle.
 
 ## Idempotency
 
