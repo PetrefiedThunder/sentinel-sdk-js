@@ -1,8 +1,13 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { webcrypto } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { SentinelCallbackHandler } from '../../dist/adapters/langchain.js';
-import { ApprovalRejected, ApprovalTimeout, SentinelClient, SentinelError } from '../../dist/index.js';
+import { ApprovalRejected, ApprovalTimeout, SentinelClient, SentinelError, SentinelAPIError } from '../../dist/index.js';
+
+// LangChain 1.2.14 targets Node 20+. Its UUID generator needs global WebCrypto;
+// use the same native implementation when exercising SDK compatibility on 18.
+globalThis.crypto ??= webcrypto;
 
 // Required real-framework regression: @langchain/core is a pinned dev dependency.
 // The optional path selects a locally installed compatibility-test version.
@@ -95,7 +100,9 @@ for (const stage of ['creation', 'decision']) {
   for (const failure of ['network', 'malformed JSON', 'missing action ID', 'HTTP 403', 'HTTP 503']) {
     test(`FE-001 real LangChain ${stage} ${failure} blocks execution`, async () => {
       let executions = 0;
+      let requests = 0;
       globalThis.fetch = async (_url, init) => {
+        requests++;
         if (stage === 'decision' && init.method === 'POST') {
           return Response.json({ action_id: 'qa-action', status: 'pending', decision: 'pending' });
         }
@@ -111,7 +118,11 @@ for (const stage of ['creation', 'decision']) {
         name: 'qa_action', description: 'Local counter',
         func: async () => { executions++; return 'local-result'; },
       });
-      await assert.rejects(() => tool.invoke('input', { callbacks: [handler] }));
+      const ErrorClass = failure === 'network' ? TypeError
+        : failure === 'malformed JSON' ? SyntaxError
+        : failure === 'missing action ID' ? SentinelError : SentinelAPIError;
+      await assert.rejects(() => tool.invoke('input', { callbacks: [handler] }), ErrorClass);
+      assert.equal(requests, stage === 'creation' ? 1 : 2);
       assert.equal(executions, 0);
     });
   }

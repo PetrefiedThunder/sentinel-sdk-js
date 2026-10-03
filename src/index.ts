@@ -300,7 +300,7 @@ export class SentinelClient {
     signal?: AbortSignal;
   }): Promise<ApprovalRecord> {
     const args = snapshotJson(opts.arguments);
-    return withApprovalDeadline(
+    const approval = await withApprovalDeadline(
       opts.timeoutSeconds ?? this.defaultTimeoutSeconds,
       () => '', // No action ID exists until creation completes.
       (signal) => this.request<ApprovalRecord>('/v1/approvals', {
@@ -322,6 +322,10 @@ export class SentinelClient {
       }),
       opts.signal
     );
+    if (!approval || typeof approval.action_id !== 'string' || !approval.action_id) {
+      throw new SentinelError('Invalid approval response: missing action ID');
+    }
+    return approval;
   }
 
   /**
@@ -378,6 +382,9 @@ export class SentinelClient {
     timeoutSeconds?: number,
     signal?: AbortSignal
   ): Promise<ApprovalRecord> {
+    if (typeof actionId !== 'string' || !actionId) {
+      throw new SentinelError('Invalid approval action ID');
+    }
     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
     const deadline = Date.now() + timeout * 1000;
     return withApprovalDeadline(timeout, () => actionId, async (requestSignal) => {

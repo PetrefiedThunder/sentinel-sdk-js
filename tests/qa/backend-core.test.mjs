@@ -106,6 +106,24 @@ test('BE control: malformed successful JSON stops execution', async () => {
   assert.equal(executions, 0);
 });
 
+test('FE-001: malformed creation identifiers cannot authorize core execution', async () => {
+  let executions = 0;
+  for (const action_id of [undefined, null, '', 1, {}, []]) {
+    requests.length = 0;
+    respond(() => json({ ...approved, action_id }));
+    await assert.rejects(makeClient().wrap({}, () => ++executions)(), /Invalid approval response/);
+    assert.equal(requests.length, 1, 'invalid creation must not initiate decision polling');
+  }
+  assert.equal(executions, 0);
+});
+
+test('FE-001: invalid decision identifiers fail before network I/O', async () => {
+  for (const actionId of [undefined, null, '', 1, {}, []]) {
+    await assert.rejects(makeClient().waitForDecision(actionId), /Invalid approval action ID/);
+  }
+  assert.equal(requests.length, 0);
+});
+
 test('BE control: pending decision past deadline throws ApprovalTimeout', async () => {
   let now = 1000;
   Date.now = () => now;
