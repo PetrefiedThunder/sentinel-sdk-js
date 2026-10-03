@@ -46,3 +46,5 @@ No live Sentinel/API/model/provider/database/billing or notification flow was te
 The working tree is intentionally **uncommitted** on `qa/2026-10-02-sweep`. No commit, push, PR creation, merge or deploy was performed. The required PR line above records ownership: the orchestrator must review/scan the diff, commit, push and open the single draft PR. **No PR URL is available from this run; remote CI is pending and unverified.**
 
 Final local handoff check: branch `qa/2026-10-02-sweep`, unchanged HEAD `717392b253a4bcf5c4b5751cafb758f7d86aa323`, no staged files, only package test configuration plus new QA docs/tests. `git diff --check` passes; evidence is [final scope](artifacts/coord-final-scope-check.txt). All local review corrections are resolved.
+
+Fix pass: see FIXES.md
