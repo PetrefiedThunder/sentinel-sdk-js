@@ -1,29 +1,19 @@
-import { knownDefect } from './known-defect.mjs';
-import { test } from 'node:test';
+import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { SentinelCallbackHandler } from '../../dist/adapters/langchain.js';
-import { ApprovalRejected, ApprovalTimeout } from '../../dist/index.js';
+import { ApprovalRejected, ApprovalTimeout, SentinelClient, SentinelError } from '../../dist/index.js';
 
-// Optional real-framework integration. The QA run installed @langchain/core
-// 1.2.14 outside the repo and supplied this non-secret package-directory path.
-// Default npm test skips this group when that optional dependency is absent.
+// Required real-framework regression: @langchain/core is a pinned dev dependency.
+// The optional path selects a locally installed compatibility-test version.
 let DynamicTool;
 const path = process.env.SENTINEL_QA_LANGCHAIN_ROOT;
 if (path) {
   // An explicit test fixture path must work; do not mask a broken installation.
   ({ DynamicTool } = await import(pathToFileURL(`${path}/dist/tools/index.js`).href));
 } else {
-  let installed = true;
-  try { createRequire(import.meta.url).resolve('@langchain/core/tools'); }
-  catch (error) {
-    if (error.code !== 'MODULE_NOT_FOUND') throw error;
-    installed = false;
-  }
-  if (installed) ({ DynamicTool } = await import('@langchain/core/tools'));
+  ({ DynamicTool } = await import('@langchain/core/tools'));
 }
-const optional = { skip: !DynamicTool && 'Optional @langchain/core is not installed; see FRONTEND-REPORT.md' };
 
 function setup(decision, overrides = {}) {
   const observed = { approvals: 0, executions: 0 };
@@ -51,7 +41,7 @@ function setup(decision, overrides = {}) {
   return { observed, invoke: () => tool.invoke('synthetic input', { callbacks: [handler] }) };
 }
 
-test('FE-001 real LangChain tool requests approval before executing', { ...optional, ...knownDefect('FE-001: ignoreAgent=true skips handleToolStart completely') }, async () => {
+test('FE-001 real LangChain tool requests approval before executing', async () => {
   const { observed, invoke } = setup('approved');
   assert.equal(await invoke(), 'local-result');
   assert.equal(observed.executions, 1);
@@ -62,20 +52,20 @@ for (const decision of ['rejected', new ApprovalTimeout('qa-action', 1)]) {
   const label = typeof decision === 'string' ? 'rejection' : 'timeout';
   const ErrorClass = typeof decision === 'string' ? ApprovalRejected : ApprovalTimeout;
 
-  test(`FE-001 real LangChain ${label} blocks execution`, { ...optional, ...knownDefect('FE-001: callback is skipped; absent raiseError also swallows errors') }, async () => {
+  test(`FE-001 real LangChain ${label} blocks execution`, async () => {
     const { observed, invoke } = setup(decision);
     await assert.rejects(invoke, ErrorClass);
     assert.equal(observed.executions, 0);
   });
 
-  test(`FE-001 enabling callback alone still swallows ${label}`, { ...optional, ...knownDefect('FE-001: raiseError must also be true') }, async () => {
+  test(`FE-001 enabled callback propagates ${label}`, async () => {
     const { observed, invoke } = setup(decision, { ignoreAgent: false });
     await assert.rejects(invoke, ErrorClass);
     assert.equal(observed.approvals, 1);
     assert.equal(observed.executions, 0);
   });
 
-  test(`LangChain control: callback enabled and raiseError propagates ${label}`, optional, async () => {
+  test(`LangChain control: callback enabled and raiseError propagates ${label}`, async () => {
     const { observed, invoke } = setup(decision, { ignoreAgent: false, raiseError: true });
     await assert.rejects(invoke, ErrorClass);
     assert.equal(observed.approvals, 1);
@@ -83,9 +73,46 @@ for (const decision of ['rejected', new ApprovalTimeout('qa-action', 1)]) {
   });
 }
 
-test('LangChain control: callback enabled and approval allows one execution', optional, async () => {
+test('LangChain control: callback enabled and approval allows one execution', async () => {
   const { observed, invoke } = setup('approved', { ignoreAgent: false, raiseError: true });
   assert.equal(await invoke(), 'local-result');
   assert.equal(observed.approvals, 1);
   assert.equal(observed.executions, 1);
 });
+
+for (const decision of [undefined, null, 'pending', 'unexpected']) {
+  test(`FE-001 missing or nonterminal approval (${decision}) blocks execution`, async () => {
+    const { observed, invoke } = setup(decision);
+    await assert.rejects(invoke, SentinelError);
+    assert.equal(observed.executions, 0);
+  });
+}
+
+const originalFetch = globalThis.fetch;
+afterEach(() => { globalThis.fetch = originalFetch; });
+
+for (const stage of ['creation', 'decision']) {
+  for (const failure of ['network', 'malformed JSON', 'missing action ID', 'HTTP 403', 'HTTP 503']) {
+    test(`FE-001 real LangChain ${stage} ${failure} blocks execution`, async () => {
+      let executions = 0;
+      globalThis.fetch = async (_url, init) => {
+        if (stage === 'decision' && init.method === 'POST') {
+          return Response.json({ action_id: 'qa-action', status: 'pending', decision: 'pending' });
+        }
+        if (failure === 'network') throw new TypeError('Synthetic network failure');
+        if (failure === 'malformed JSON') return new Response('not JSON');
+        if (failure === 'missing action ID') return Response.json({ status: 'approved', decision: 'approved' });
+        return Response.json({ detail: 'Synthetic HTTP error' }, { status: Number(failure.slice(5)) });
+      };
+      const handler = new SentinelCallbackHandler({
+        client: new SentinelClient({ apiKey: 'qa-synthetic', apiUrl: 'http://127.0.0.1:1' }),
+      });
+      const tool = new DynamicTool({
+        name: 'qa_action', description: 'Local counter',
+        func: async () => { executions++; return 'local-result'; },
+      });
+      await assert.rejects(() => tool.invoke('input', { callbacks: [handler] }));
+      assert.equal(executions, 0);
+    });
+  }
+}

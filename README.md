@@ -79,6 +79,11 @@ for prioritization.
 
 ## Errors
 
+The LangChain callback adapter fails closed: rejection, timeout, network/HTTP
+errors and malformed approvals block the tool. It provides no fail-open option.
+Do not disable its `raiseError`, `awaitHandlers` or tool callback flags. The
+required integration suite tests `@langchain/core` 1.2.14 on Node 20+.
+
 ```typescript
 import {
   SentinelError,

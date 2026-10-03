@@ -25,15 +25,17 @@
  *
  * Semantics: in handleToolStart we create a Sentinel approval and BLOCK until
  * a human decides. On approve → LangChain proceeds with the tool call. On
- * reject or timeout → we throw, which aborts the chain.
+ * reject, timeout, transport error or malformed approval → we throw, which
+ * aborts the chain. No fail-open mode is provided.
  *
  * No hard dependency on @langchain/core — we duck-type the callback shape.
- * LangChain accepts plain objects with the right method names as callbacks,
- * so this works with @langchain/core ≥ 0.1.x without us pinning a version.
+ * LangChain accepts plain objects with the right method names as callbacks.
+ * Integration tests exercise @langchain/core 1.2.14 (Node 20+).
  */
 
 import {
   ApprovalRejected,
+  SentinelError,
   type OversightOptions,
   SentinelClient,
   getClient,
@@ -61,7 +63,8 @@ export class SentinelCallbackHandler {
   awaitHandlers = true; // LangChain must await us; we can't pause non-blocking
   ignoreLLM = true; // we don't gate LLM calls, only tool execution
   ignoreChain = true;
-  ignoreAgent = true;
+  ignoreAgent = false; // LangChain uses this flag for tool callbacks too
+  raiseError = true; // Approval failures must abort tool execution
   ignoreRetriever = true;
 
   constructor(private readonly opts: SentinelCallbackOptions = {}) {}
@@ -90,17 +93,28 @@ export class SentinelCallbackHandler {
       approvers: this.opts.approvers,
       timeoutSeconds: this.opts.timeoutSeconds,
     });
+    if (!approval || typeof approval.action_id !== 'string' || !approval.action_id) {
+      throw new SentinelError('Invalid approval response: missing action ID');
+    }
 
     const decision = await client.waitForDecision(
       approval.action_id,
       this.opts.timeoutSeconds
     );
 
-    if (decision.decision === 'rejected' || decision.status === 'rejected') {
+    if (decision?.decision === 'rejected' || decision?.status === 'rejected') {
       throw new ApprovalRejected(
         (decision.reason as string) || 'Approval rejected by Sentinel',
         approval.action_id
       );
+    }
+    if (
+      !decision || decision.action_id !== approval.action_id ||
+      (decision.status !== 'approved' && decision.decision !== 'approved') ||
+      (decision.status !== undefined && decision.status !== 'approved') ||
+      (decision.decision !== undefined && decision.decision !== 'approved')
+    ) {
+      throw new SentinelError('Invalid approval response: explicit approval required');
     }
     // approved → return; LangChain proceeds to actually invoke the tool
   }

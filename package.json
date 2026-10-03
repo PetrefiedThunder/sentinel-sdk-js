@@ -79,6 +79,7 @@
     "undici": "^6.29.0"
   },
   "devDependencies": {
+    "@langchain/core": "1.2.14",
     "@semantic-release/changelog": "^7.0.0",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/git": "^11.0.1",
