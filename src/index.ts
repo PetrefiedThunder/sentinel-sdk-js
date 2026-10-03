@@ -381,6 +381,7 @@ export class SentinelClient {
     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
     const deadline = Date.now() + timeout * 1000;
     return withApprovalDeadline(timeout, () => actionId, async (requestSignal) => {
+      let polling = false;
       while (true) {
         requestSignal.throwIfAborted();
         if (Date.now() >= deadline) throw new ApprovalTimeout(actionId, timeout);
@@ -391,11 +392,13 @@ export class SentinelClient {
         let data: ApprovalRecord;
         try {
           data = await this.request<ApprovalRecord>(
-            `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`,
+            `/v1/approvals/${encodeURIComponent(actionId)}${polling ? '' : `/wait?timeout=${remaining}`}`,
             { signal: requestSignal }
           );
         } catch (e) {
-          if (e instanceof SentinelAPIError && e.statusCode === 404) {
+          if (!polling && e instanceof SentinelAPIError && e.statusCode === 404) {
+            polling = true;
+            if (Date.now() >= deadline) throw new ApprovalTimeout(actionId, timeout);
             data = await this.request<ApprovalRecord>(
               `/v1/approvals/${encodeURIComponent(actionId)}`, { signal: requestSignal }
             );
@@ -421,6 +424,19 @@ export class SentinelClient {
         }
         const status = data.status ?? data.decision;
         if (status === 'approved') return data;
+        if (polling) {
+          await new Promise<void>((resolve, reject) => {
+            const onAbort = () => {
+              clearTimeout(timer);
+              reject(requestSignal.reason);
+            };
+            const timer = setTimeout(() => {
+              requestSignal.removeEventListener('abort', onAbort);
+              resolve();
+            }, Math.min(1000, deadline - Date.now()));
+            requestSignal.addEventListener('abort', onAbort, { once: true });
+          });
+        }
       }
     }, signal);
   }

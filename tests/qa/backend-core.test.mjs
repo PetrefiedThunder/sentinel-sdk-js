@@ -389,7 +389,7 @@ test('BE-003: repeated references, null prototypes and __proto__ data preserve J
   assert.equal(Object.is(result.zero, 0), true);
 });
 
-test('BE-004: legacy fallback polling must be paced', { ...knownDefect('BE-004 no delay between 404/pending poll attempts') }, async () => {
+test('BE-004: legacy fallback polling must be paced', async () => {
   let now = 1000;
   Date.now = () => now;
   respond(({ url }, number) => {
@@ -403,6 +403,25 @@ test('BE-004: legacy fallback polling must be paced', { ...knownDefect('BE-004 n
   now = 3000; // A paced implementation can exit at its next deadline check.
   await result;
   assert.ok(beforeTimerTurn <= 2, `${beforeTimerTurn} requests ran before a timer/event-loop turn; fallback must be paced`);
+});
+
+test('BE-004: fallback remembers unsupported wait endpoint and accepts the next paced decision', async () => {
+  respond(({ url }, number) => url.includes('/wait?')
+    ? json({ detail: 'No wait route' }, 404)
+    : json(number >= 3 ? approved : pending));
+  assert.deepEqual(await makeClient().waitForDecision('qa-action', 3), approved);
+  assert.equal(requests.filter(({ url }) => url.includes('/wait?')).length, 1);
+  assert.equal(requests.length, 3);
+});
+
+test('BE-004: fallback sleep respects cancellation and does not send another request', async () => {
+  const controller = new AbortController();
+  respond(({ url }) => url.includes('/wait?') ? json({ detail: 'No wait route' }, 404) : json(pending));
+  const result = makeClient().waitForDecision('qa-action', 30, controller.signal);
+  await new Promise((resolve) => setImmediate(resolve));
+  controller.abort(new Error('Synthetic cancelled poll'));
+  await assert.rejects(result, /Synthetic cancelled poll/);
+  assert.equal(requests.length, 2);
 });
 
 test('BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions', { timeout: 5000 }, async (t) => {
