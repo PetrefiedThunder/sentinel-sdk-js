@@ -114,18 +114,42 @@ export class ApprovalTimeout extends SentinelError {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
-/** Fail-fast if args can't be JSON-encoded. Mirrors Python SDK 0.1.8 fix. */
-export function ensureJsonSerializable(value: unknown): void {
-  try {
-    JSON.stringify(value);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new TypeError(
-      `oversight arguments must be JSON-serializable. Got: ${msg}. ` +
-        `Convert Maps/Sets/BigInts/circular refs/class instances to plain ` +
-        `objects/arrays/strings/numbers/booleans/null before the call.`
-    );
+/** Copy plain JSON data without invoking accessors or serialization hooks. */
+function snapshotJson(value: unknown, ancestors = new Set<object>()): unknown {
+  const invalid = () => new TypeError(
+    'oversight arguments must be JSON-serializable plain data: ' +
+    'objects, dense arrays, strings, finite numbers, booleans or null. ' +
+    'Convert unsupported values before the call.'
+  );
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return value === 0 ? 0 : value;
+  if (typeof value !== 'object' || ancestors.has(value)) throw invalid();
+  const array = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (array && prototype !== Array.prototype) throw invalid();
+  if (!array && prototype !== Object.prototype && prototype !== null) throw invalid();
+  const keys = Reflect.ownKeys(value);
+  if (array && keys.length !== value.length + 1) throw invalid();
+  ancestors.add(value);
+  const copy: Record<string, unknown> | unknown[] = array ? [] : {};
+  for (const key of keys) {
+    if (array && key === 'length') continue;
+    if (typeof key !== 'string') throw invalid();
+    if (array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length)) throw invalid();
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+    if (!descriptor.enumerable || !('value' in descriptor)) throw invalid();
+    Object.defineProperty(copy, key, {
+      value: snapshotJson(descriptor.value, ancestors),
+      enumerable: true, writable: true, configurable: true,
+    });
   }
+  ancestors.delete(value);
+  return copy;
+}
+
+/** Fail-fast on unsupported or lossy JSON values, including nested values. */
+export function ensureJsonSerializable(value: unknown): void {
+  snapshotJson(value);
 }
 
 /** Wire shape of a paginated list response. */
@@ -167,6 +191,53 @@ function buildQuery(
   return parts.length ? `?${parts.join('&')}` : '';
 }
 
+async function withApprovalDeadline<T>(
+  timeoutSeconds: number,
+  actionId: () => string,
+  operation: (signal: AbortSignal) => Promise<T>,
+  parentSignal?: AbortSignal
+): Promise<T> {
+  if (!Number.isFinite(timeoutSeconds) || timeoutSeconds < 0) {
+    throw new TypeError('Approval timeout must be a finite non-negative number');
+  }
+  parentSignal?.throwIfAborted();
+  const deadline = Date.now() + timeoutSeconds * 1000;
+  const controller = new AbortController();
+  const timeoutError = () => new ApprovalTimeout(actionId(), timeoutSeconds);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
+  const expired = new Promise<never>((_resolve, reject) => {
+    onAbort = () => {
+      controller.abort(parentSignal!.reason);
+      reject(parentSignal!.reason);
+    };
+    if (parentSignal?.aborted) onAbort();
+    else parentSignal?.addEventListener('abort', onAbort, { once: true });
+    const expire = () => {
+      const remaining = deadline - Date.now();
+      if (remaining > 0) {
+        timer = setTimeout(expire, Math.min(remaining, 2 ** 31 - 1));
+        return;
+      }
+      const error = timeoutError();
+      controller.abort(error);
+      reject(error);
+    };
+    timer = setTimeout(expire, Math.min(timeoutSeconds * 1000, 2 ** 31 - 1));
+  });
+  try {
+    controller.signal.throwIfAborted();
+    if (Date.now() >= deadline) throw timeoutError();
+    const result = await Promise.race([operation(controller.signal), expired]);
+    controller.signal.throwIfAborted();
+    if (Date.now() >= deadline) throw timeoutError();
+    return result;
+  } finally {
+    clearTimeout(timer);
+    if (onAbort) parentSignal?.removeEventListener('abort', onAbort);
+  }
+}
+
 // ── Client ─────────────────────────────────────────────────────────
 export class SentinelClient {
   private readonly apiKey: string;
@@ -189,6 +260,7 @@ export class SentinelClient {
     path: string,
     init: RequestInit = {}
   ): Promise<T> {
+    init.signal?.throwIfAborted();
     const url = `${this.apiUrl}${path}`;
     const r = await fetch(url, {
       ...init,
@@ -200,15 +272,15 @@ export class SentinelClient {
       },
     });
     if (!r.ok) {
-      let detail = '';
+      const text = await r.text().catch(() => '');
+      let detail = text.slice(0, 500);
       try {
-        const body = (await r.json()) as Record<string, unknown>;
-        const rawDetail = body['detail'] ?? body['message'] ?? body;
+        const body = JSON.parse(text) as Record<string, unknown> | null;
+        const rawDetail = body?.['detail'] ?? body?.['message'] ?? body;
         detail =
           typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
       } catch {
-        const txt = await r.text().catch(() => '');
-        detail = txt.slice(0, 500);
+        // Non-JSON bodies retain the bounded text read above.
       }
       throw new SentinelAPIError(r.status, detail, url);
     }
@@ -224,24 +296,36 @@ export class SentinelClient {
     /** Whole seconds; a fraction is rounded to the nearest second. */
     timeoutSeconds?: number;
     idempotencyKey?: string;
+    /** Optional cancellation; a local approval timeout is still enforced. */
+    signal?: AbortSignal;
   }): Promise<ApprovalRecord> {
-    ensureJsonSerializable(opts.arguments);
-    return this.request<ApprovalRecord>('/v1/approvals', {
-      method: 'POST',
-      headers: opts.idempotencyKey
-        ? { 'Idempotency-Key': opts.idempotencyKey }
-        : {},
-      body: JSON.stringify({
-        function_name: opts.functionName,
-        arguments: opts.arguments,
-        risk_level: opts.riskLevel ?? 'medium',
-        approvers: opts.approvers ?? [],
-        // API types timeout_seconds as integer and 422s on a fraction.
-        timeout_seconds: toIntTimeoutSeconds(
-          opts.timeoutSeconds ?? this.defaultTimeoutSeconds
-        ),
+    const args = snapshotJson(opts.arguments);
+    const approval = await withApprovalDeadline(
+      opts.timeoutSeconds ?? this.defaultTimeoutSeconds,
+      () => '', // No action ID exists until creation completes.
+      (signal) => this.request<ApprovalRecord>('/v1/approvals', {
+        method: 'POST',
+        signal,
+        headers: opts.idempotencyKey
+          ? { 'Idempotency-Key': opts.idempotencyKey }
+          : {},
+        body: JSON.stringify({
+          function_name: opts.functionName,
+          arguments: args,
+          risk_level: opts.riskLevel ?? 'medium',
+          approvers: opts.approvers ?? [],
+          // API types timeout_seconds as integer and 422s on a fraction.
+          timeout_seconds: toIntTimeoutSeconds(
+            opts.timeoutSeconds ?? this.defaultTimeoutSeconds
+          ),
       }),
-    });
+      }),
+      opts.signal
+    );
+    if (!approval || typeof approval.action_id !== 'string' || !approval.action_id) {
+      throw new SentinelError('Invalid approval response: missing action ID');
+    }
+    return approval;
   }
 
   /**
@@ -295,33 +379,73 @@ export class SentinelClient {
    */
   async waitForDecision(
     actionId: string,
-    timeoutSeconds?: number
+    timeoutSeconds?: number,
+    signal?: AbortSignal
   ): Promise<ApprovalRecord> {
+    if (typeof actionId !== 'string' || !actionId) {
+      throw new SentinelError('Invalid approval action ID');
+    }
     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
     const deadline = Date.now() + timeout * 1000;
-    while (true) {
-      const remaining = Math.max(
-        1,
-        Math.min(30, Math.floor((deadline - Date.now()) / 1000))
-      );
-      let data: ApprovalRecord;
-      try {
-        data = await this.request<ApprovalRecord>(
-          `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`
+    return withApprovalDeadline(timeout, () => actionId, async (requestSignal) => {
+      let polling = false;
+      while (true) {
+        requestSignal.throwIfAborted();
+        if (Date.now() >= deadline) throw new ApprovalTimeout(actionId, timeout);
+        const remaining = Math.max(
+          1,
+          Math.min(30, Math.floor((deadline - Date.now()) / 1000))
         );
-      } catch (e) {
-        if (e instanceof SentinelAPIError && e.statusCode === 404) {
-          data = await this.getApproval(actionId);
-        } else {
-          throw e;
+        let data: ApprovalRecord;
+        try {
+          data = await this.request<ApprovalRecord>(
+            `/v1/approvals/${encodeURIComponent(actionId)}${polling ? '' : `/wait?timeout=${remaining}`}`,
+            { signal: requestSignal }
+          );
+        } catch (e) {
+          if (!polling && e instanceof SentinelAPIError && e.statusCode === 404) {
+            polling = true;
+            if (Date.now() >= deadline) throw new ApprovalTimeout(actionId, timeout);
+            data = await this.request<ApprovalRecord>(
+              `/v1/approvals/${encodeURIComponent(actionId)}`, { signal: requestSignal }
+            );
+          } else {
+            throw e;
+          }
+        }
+        requestSignal.throwIfAborted();
+        if (Date.now() >= deadline) {
+          throw new ApprovalTimeout(actionId, timeout);
+        }
+        if (
+          !data || data.action_id !== actionId ||
+          !['pending', 'approved', 'rejected'].includes(data.status ?? data.decision) ||
+          (data.status !== undefined && !['pending', 'approved', 'rejected'].includes(data.status)) ||
+          (data.decision !== undefined && !['pending', 'approved', 'rejected'].includes(data.decision))
+        ) {
+          throw new SentinelError('Invalid approval decision response');
+        }
+        if (data.status === 'rejected' || data.decision === 'rejected') return data;
+        if (data.status !== undefined && data.decision !== undefined && data.status !== data.decision) {
+          throw new SentinelError('Conflicting approval decision response');
+        }
+        const status = data.status ?? data.decision;
+        if (status === 'approved') return data;
+        if (polling) {
+          await new Promise<void>((resolve, reject) => {
+            const onAbort = () => {
+              clearTimeout(timer);
+              reject(requestSignal.reason);
+            };
+            const timer = setTimeout(() => {
+              requestSignal.removeEventListener('abort', onAbort);
+              resolve();
+            }, Math.min(1000, deadline - Date.now()));
+            requestSignal.addEventListener('abort', onAbort, { once: true });
+          });
         }
       }
-      const status = data.status ?? data.decision;
-      if (status === 'approved' || status === 'rejected') return data;
-      if (Date.now() >= deadline) {
-        throw new ApprovalTimeout(actionId, timeout);
-      }
-    }
+    }, signal);
   }
 
   // ---- tenant ----
@@ -378,7 +502,7 @@ export class SentinelClient {
    *
    *   await safeRefund('ch_abc123');
    *
-   * On approval the wrapped fn runs with the original arguments and its
+   * On approval the wrapped fn runs with a private JSON argument snapshot and its
    * return value flows back to the caller. On rejection → ApprovalRejected.
    * On timeout → ApprovalTimeout.
    */
@@ -388,41 +512,52 @@ export class SentinelClient {
   ): (...args: Args) => Promise<R> {
     const fnName = opts.functionName || fn.name || 'anonymous';
     return async (...args: Args): Promise<R> => {
+      const approvedArgs = snapshotJson(args) as Args;
       // API requires `arguments` be a JSON object (dict). Two ergonomic
       // shapes: if the caller passes exactly one plain-object arg, that
       // object IS the arguments (named-style). Otherwise wrap positional
       // args under `{ args: [...] }`.
       const isPlainObject =
-        args.length === 1 &&
-        args[0] !== null &&
-        typeof args[0] === 'object' &&
-        !Array.isArray(args[0]);
+        approvedArgs.length === 1 &&
+        approvedArgs[0] !== null &&
+        typeof approvedArgs[0] === 'object' &&
+        !Array.isArray(approvedArgs[0]);
       const callArgs: Record<string, unknown> = isPlainObject
-        ? (args[0] as Record<string, unknown>)
-        : { args: args as unknown[] };
+        ? (approvedArgs[0] as Record<string, unknown>)
+        : { args: approvedArgs as unknown[] };
       const idempotencyKey =
         typeof opts.idempotencyKey === 'function'
           ? opts.idempotencyKey()
           : opts.idempotencyKey;
-      const approval = await this.createApproval({
-        functionName: fnName,
-        arguments: callArgs,
-        riskLevel: opts.riskLevel,
-        approvers: opts.approvers,
-        timeoutSeconds: opts.timeoutSeconds,
-        idempotencyKey,
+      const timeout = opts.timeoutSeconds ?? this.defaultTimeoutSeconds;
+      const deadline = Date.now() + timeout * 1000;
+      let actionId = '';
+      const { approval, decision } = await withApprovalDeadline(timeout, () => actionId, async (signal) => {
+        const approval = await this.createApproval({
+          functionName: fnName,
+          arguments: callArgs,
+          riskLevel: opts.riskLevel,
+          approvers: opts.approvers,
+          timeoutSeconds: opts.timeoutSeconds,
+          idempotencyKey,
+          signal,
+        });
+        actionId = approval.action_id;
+        const decision = await this.waitForDecision(
+          approval.action_id,
+          opts.timeoutSeconds,
+          signal
+        );
+        return { approval, decision };
       });
-      const decision = await this.waitForDecision(
-        approval.action_id,
-        opts.timeoutSeconds
-      );
       if (decision.decision === 'rejected' || decision.status === 'rejected') {
         throw new ApprovalRejected(
           (decision.reason as string) || 'Approval rejected',
           approval.action_id
         );
       }
-      return await fn(...args);
+      if (Date.now() >= deadline) throw new ApprovalTimeout(actionId, timeout);
+      return await fn(...approvedArgs);
     };
   }
 }

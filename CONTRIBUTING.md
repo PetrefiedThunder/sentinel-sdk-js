@@ -23,7 +23,7 @@ SENTINEL_API_KEY=sk_live_... npm run smoke
 Open an issue at https://github.com/PetrefiedThunder/sentinel-sdk-js/issues
 and include:
 
-1. SDK version (`node -e "console.log(require('sentinel-oversight/package.json').version)"`)
+1. SDK version (`node --input-type=module -e "import { VERSION } from 'sentinel-oversight'; console.log(VERSION)"`)
 2. Node version (`node --version`)
 3. Minimal reproducible example
 4. Full error / stack trace

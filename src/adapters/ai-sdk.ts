@@ -54,9 +54,7 @@ export interface AiSdkGateOptions extends OversightOptions {
 }
 
 interface AiSdkToolLike {
-  description?: string;
-  execute?: (...args: unknown[]) => unknown | Promise<unknown>;
-  [key: string]: unknown;
+  execute?(...args: unknown[]): unknown | Promise<unknown>;
 }
 
 export function gated<T extends AiSdkToolLike>(
@@ -91,6 +89,9 @@ export function gated<T extends AiSdkToolLike>(
       riskLevel: opts.riskLevel,
       approvers: opts.approvers,
       timeoutSeconds: opts.timeoutSeconds,
+      idempotencyKey: typeof opts.idempotencyKey === 'function'
+        ? opts.idempotencyKey()
+        : opts.idempotencyKey,
     });
 
     const decision = await sentinel.waitForDecision(

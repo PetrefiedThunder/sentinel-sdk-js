@@ -46,9 +46,7 @@ export interface MastraGateOptions extends OversightOptions {
 
 interface MastraToolLike {
   id?: string;
-  description?: string;
-  execute: (...args: unknown[]) => unknown | Promise<unknown>;
-  [key: string]: unknown;
+  execute(...args: unknown[]): unknown | Promise<unknown>;
 }
 
 export function gated<T extends MastraToolLike>(
@@ -82,6 +80,9 @@ export function gated<T extends MastraToolLike>(
       riskLevel: opts.riskLevel,
       approvers: opts.approvers,
       timeoutSeconds: opts.timeoutSeconds,
+      idempotencyKey: typeof opts.idempotencyKey === 'function'
+        ? opts.idempotencyKey()
+        : opts.idempotencyKey,
     });
 
     const decision = await sentinel.waitForDecision(
