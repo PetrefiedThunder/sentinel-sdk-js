@@ -255,7 +255,7 @@ test('BE-002: a stalled request must settle at the approval deadline', { ...know
   assert.equal(observed, 'timeout');
 });
 
-test('BE-003: lossy non-JSON arguments must fail before approval or execution', { ...knownDefect('BE-003 serializer accepts silently altered values') }, async () => {
+test('BE-003: lossy non-JSON arguments must fail before approval or execution', async () => {
   const cases = [
     { amount: Number.NaN }, { amount: Infinity }, { hidden: undefined },
     { targets: new Set(['qa-target']) }, { targets: new Map([['recipient', 'qa-target']]) },
@@ -271,6 +271,40 @@ test('BE-003: lossy non-JSON arguments must fail before approval or execution', 
   }
   assert.deepEqual(accepted, [], 'silently omitted or changed data must not execute under a different approved payload');
   assert.equal(requests.length, 0);
+});
+
+test('BE-003: nested unsupported values and serialization hooks fail without executing hooks', async () => {
+  let hooks = 0;
+  const accessor = Object.defineProperty({}, 'amount', { enumerable: true, get() { hooks++; return 1; } });
+  const customArray = Object.assign([1], { hiddenIntent: 2 });
+  const cases = [
+    undefined, Symbol('value'), () => 1, -Infinity, new Date(), /pattern/,
+    Object(1), new (class Transfer { amount = 1; })(), new (class extends Array {})(),
+    { nested: [undefined] }, { nested: [Symbol('value')] }, [1, , 3], customArray,
+    { [Symbol('intent')]: 1 }, Object.defineProperty({}, 'hidden', { value: 1 }),
+    accessor, { toJSON() { hooks++; return { amount: 1 }; } },
+  ];
+  let executions = 0;
+  for (const value of cases) {
+    await assert.rejects(makeClient().wrap({}, () => executions++)(value), TypeError);
+    await assert.rejects(makeClient().createApproval({ functionName: 'qa', arguments: value }), TypeError);
+  }
+  assert.equal(hooks, 0);
+  assert.equal(requests.length, 0);
+  assert.equal(executions, 0);
+});
+
+test('BE-003: repeated references, null prototypes and __proto__ data preserve JSON intent', async () => {
+  const shared = { amount: 1 };
+  const value = Object.assign(Object.create(null), JSON.parse('{"__proto__":{"safe":true}}'), {
+    first: shared, second: shared, zero: -0,
+  });
+  const result = await makeClient().wrap({}, (arg) => arg)(value);
+  assert.deepEqual(result, JSON.parse(requests[0].init.body).arguments);
+  assert.equal(Object.getPrototypeOf(result), Object.prototype);
+  assert.equal(Object.hasOwn(result, '__proto__'), true);
+  assert.equal(Object.hasOwn(Object.prototype, 'safe'), false);
+  assert.equal(Object.is(result.zero, 0), true);
 });
 
 test('BE-004: legacy fallback polling must be paced', { ...knownDefect('BE-004 no delay between 404/pending poll attempts') }, async () => {

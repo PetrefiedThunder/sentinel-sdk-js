@@ -60,12 +60,18 @@ await wireTransfer(50_000_00, 'acct_acme_corp');
 - **Sync + async** — works with both plain functions and Promise-returning ones
 - **Zero deps** — uses native `fetch`, no axios / undici tax
 
-## Approvers
-
 `oversight` / `client.wrap` copy JSON arguments before requesting approval and
 execute that snapshot. Changing the caller's objects while approval is pending
 does not change the action. The function receives its own mutable copy; caller
 object identity is not preserved.
+
+Arguments must be plain JSON data: objects, dense arrays, strings, finite numbers,
+booleans or null. Unsupported values (including `undefined`, functions, symbols,
+Maps/Sets, Dates, class instances, accessors, sparse arrays and circular references)
+raise `TypeError` before any request. Convert them explicitly before calling.
+Repeated references are copied as JSON data; negative zero is normalized to zero.
+
+## Approvers
 
 Each entry in `approvers: [...]` is a string. Format determines the channel.
 

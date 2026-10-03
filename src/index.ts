@@ -114,18 +114,42 @@ export class ApprovalTimeout extends SentinelError {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
-/** Fail-fast if args can't be JSON-encoded. Mirrors Python SDK 0.1.8 fix. */
-export function ensureJsonSerializable(value: unknown): void {
-  try {
-    JSON.stringify(value);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new TypeError(
-      `oversight arguments must be JSON-serializable. Got: ${msg}. ` +
-        `Convert Maps/Sets/BigInts/circular refs/class instances to plain ` +
-        `objects/arrays/strings/numbers/booleans/null before the call.`
-    );
+/** Copy plain JSON data without invoking accessors or serialization hooks. */
+function snapshotJson(value: unknown, ancestors = new Set<object>()): unknown {
+  const invalid = () => new TypeError(
+    'oversight arguments must be JSON-serializable plain data: ' +
+    'objects, dense arrays, strings, finite numbers, booleans or null. ' +
+    'Convert unsupported values before the call.'
+  );
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return value === 0 ? 0 : value;
+  if (typeof value !== 'object' || ancestors.has(value)) throw invalid();
+  const array = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (array && prototype !== Array.prototype) throw invalid();
+  if (!array && prototype !== Object.prototype && prototype !== null) throw invalid();
+  const keys = Reflect.ownKeys(value);
+  if (array && keys.length !== value.length + 1) throw invalid();
+  ancestors.add(value);
+  const copy: Record<string, unknown> | unknown[] = array ? [] : {};
+  for (const key of keys) {
+    if (array && key === 'length') continue;
+    if (typeof key !== 'string') throw invalid();
+    if (array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length)) throw invalid();
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+    if (!descriptor.enumerable || !('value' in descriptor)) throw invalid();
+    Object.defineProperty(copy, key, {
+      value: snapshotJson(descriptor.value, ancestors),
+      enumerable: true, writable: true, configurable: true,
+    });
   }
+  ancestors.delete(value);
+  return copy;
+}
+
+/** Fail-fast on unsupported or lossy JSON values, including nested values. */
+export function ensureJsonSerializable(value: unknown): void {
+  snapshotJson(value);
 }
 
 /** Wire shape of a paginated list response. */
@@ -225,7 +249,7 @@ export class SentinelClient {
     timeoutSeconds?: number;
     idempotencyKey?: string;
   }): Promise<ApprovalRecord> {
-    ensureJsonSerializable(opts.arguments);
+    const args = snapshotJson(opts.arguments);
     return this.request<ApprovalRecord>('/v1/approvals', {
       method: 'POST',
       headers: opts.idempotencyKey
@@ -233,7 +257,7 @@ export class SentinelClient {
         : {},
       body: JSON.stringify({
         function_name: opts.functionName,
-        arguments: opts.arguments,
+        arguments: args,
         risk_level: opts.riskLevel ?? 'medium',
         approvers: opts.approvers ?? [],
         // API types timeout_seconds as integer and 422s on a fraction.
@@ -388,8 +412,7 @@ export class SentinelClient {
   ): (...args: Args) => Promise<R> {
     const fnName = opts.functionName || fn.name || 'anonymous';
     return async (...args: Args): Promise<R> => {
-      ensureJsonSerializable(args);
-      const approvedArgs = JSON.parse(JSON.stringify(args)) as Args;
+      const approvedArgs = snapshotJson(args) as Args;
       // API requires `arguments` be a JSON object (dict). Two ergonomic
       // shapes: if the caller passes exactly one plain-object arg, that
       // object IS the arguments (named-style). Otherwise wrap positional
