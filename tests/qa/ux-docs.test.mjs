@@ -1,4 +1,3 @@
-import { knownDefect } from './known-defect.mjs';
 import { afterEach, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -155,12 +154,11 @@ test('UX-002 README Errors block should propagate the approved business operatio
   await assert.rejects(run, (error) => error === operationError);
 });
 
-test('UX-003 documented SDK version command should complete successfully', {
-  ...knownDefect('UX-003: package.json is not an exported package subpath'),
-}, () => {
-  const snippet = contributorGuide.match(/node -e "([^"]+)"/);
+test('UX-003 documented SDK version command should complete successfully', () => {
+  const snippet = contributorGuide.match(/node (?:(--input-type=module) )?-e "([^"]+)"/);
   assert.ok(snippet, 'CONTRIBUTING version-reporting command exists');
-  const result = spawnSync(process.execPath, ['-e', snippet[1]], {
+  const args = [...(snippet[1] ? [snippet[1]] : []), '-e', snippet[2]];
+  const result = spawnSync(process.execPath, args, {
     cwd: new URL('../../', import.meta.url), encoding: 'utf8',
   });
   assert.equal(result.status, 0, result.stderr);
