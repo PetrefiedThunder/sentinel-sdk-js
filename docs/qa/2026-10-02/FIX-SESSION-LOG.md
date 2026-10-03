@@ -1456,6 +1456,82 @@ cat docs/qa/2026-10-02/FIXES.md && sed -n "1,80p" docs/qa/2026-10-02/FIX-SESSION
 
 End: 2026-10-03T02:55:19.124622+00:00. Exit: 0; 0.025s. Diagnostic: End: 2026-10-03T02:38:49.410694+00:00. Exit: 0; 1.499s. Test totals: ℹ tests 110; ℹ pass 86; ℹ fail 0; ℹ cancelled 0; ℹ skipped 0; ℹ todo 24. Diagnostic: AssertionError [ERR_ASSERTION]: tests/qa/frontend-consumer.mts(7,3): error TS2322: Type '(input: { amount: number; }) => Promise<number>' is not assignable to type '(...args: unknown[]) => unknown'. / tests/qa/frontend-consumer.mts(10,3): error TS2322: Type '(_context: object, input: string) => Promise<any>' is not assignable to type '(...args: unknown[]) => unknown'. / tests/qa/frontend-consumer.mts(13,3): error TS2322: Type '({ context }: { context: { amount: number; }; }) => Promise<number>' is not assignable to type '(...args: unknown[]) => unknown'.. / End: 2026-10-03T02:52:41.018291+00:00. Exit: 0; 0.642s. Diagnostic: 7:52PM INF no leaks found..
 
+### 2026-10-03T02:55:28.696914+00:00 — root — command 129
+
+````sh
+python3 - <<'PY'
+from pathlib import Path
+p=Path('/private/tmp/sentinel-write-fix-docs.py')
+s=p.read_text().replace('tests/qa/frontend-adapters.test.mjs::FE-003 <ai/agents/mastra/langchain>: forwards <string/function> idempotency key', 'tests/qa/frontend-adapters.test.mjs::FE-003 ai: forwards string idempotency key')
+p.write_text(s)
+PY
+python3 /private/tmp/sentinel-write-fix-docs.py
+python3 - <<'PY'
+from pathlib import Path
+import re,subprocess,json
+p=Path('docs/qa/2026-10-02/FIXES.md')
+s=p.read_text()
+rows=[line for line in s.splitlines() if re.match(r'^\| (FE|BE|UX)-\d',line)]
+assert len(rows)==13
+assert sum('| fixed |' in r for r in rows)==12
+assert sum('| deferred |' in r for r in rows)==1
+assert 'FixCounts: fixed=5 partial=0 deferred=0' in s
+for row in rows:
+    for sha in row.split('|')[5].strip().split(', '):
+        if sha!='—': subprocess.run(['git','cat-file','-e',sha+'^{commit}'],check=True)
+for lane in ['final','node18','node24']:
+    records=[json.loads(l) for l in Path('/private/tmp/sentinel-fix-evidence/'+lane+'.jsonl').read_text().splitlines()]
+    result=next(r for r in reversed(records) if re.search(r'^(?:ℹ |# )tests 149$',r['output'],re.M))
+    assert result['exit']==0
+    assert re.search(r'^(?:ℹ |# )pass 149$',result['output'],re.M)
+    for metric in ['fail','skipped','todo']:
+        assert re.search(r'^(?:ℹ |# )'+metric+r' 0$',result['output'],re.M)
+    print(lane, '149 pass; fail/TODO/skip0; exit0')
+assert Path('docs/qa/2026-10-02/SUMMARY.md').read_text().count('Fix pass: see FIXES.md')==1
+assert subprocess.check_output(['git','diff','--','docs/qa/2026-10-02/FINDINGS.md'],text=True)==''
+print('13 rows and commit refs verified; Critical/High counts5/0/0; original findings unchanged.')
+PY
+cat docs/qa/2026-10-02/FIXES.md docs/qa/2026-10-02/FIX-SESSION-LOG.md | gitleaks stdin --redact --no-banner
+````
+
+End: 2026-10-03T02:55:29.074041+00:00. Exit: 0; 0.377s. Diagnostic: 7:55PM INF no leaks found.
+
+### 2026-10-03T02:55:34.107997+00:00 — gate — command 130
+
+````sh
+rg -n "149|24\.21|18\.17|Node 18|node18|node24|FixCounts" docs/qa/2026-10-02/FIX-SESSION-LOG.md docs/qa/2026-10-02/FIXES.md
+````
+
+End: 2026-10-03T02:55:34.120224+00:00. Exit: 0; 0.012s. Diagnostic: docs/qa/2026-10-02/FIX-SESSION-LOG.md:1306:node --version && git diff -- src/index.ts tests/qa/backend-core.test.mjs && rg -n "crypto is not defined|ReferenceError|Node 18|node18" /private/tmp/sentinel-fix-*.log docs/qa/2026-10-02/FIX-SESSION-LOG.md / docs/qa/2026-10-02/FIX-SESSION-LOG.md:1371:End: 2026-10-03T02:52:05.144283+00:00. Exit: 0; 0.105s. Diagnostic: {"node":"v18.17.1","sentinelImported":false,"globalCryptoBefore":"undefined","before":{"name":"ReferenceError","message":"crypto is not defined"},"starts":0,"executions":0}..
+
+### 2026-10-03T02:56:01.302846+00:00 — root — command 131
+
+````sh
+python3 - <<'PY'
+from pathlib import Path
+p=Path('/private/tmp/sentinel-write-fix-docs.py')
+s=p.read_text().replace('Copy plain JSON once without invoking hooks', 'Recursively copy plain JSON without invoking hooks')
+s=s.replace('The final docs-only commit uses explicit paths and message .', 'The final docs-only commit uses explicit paths and message . The closing command is [qa/2026-10-02-fixes 67da1a2] docs(qa): fix pass log
+ 3 files changed, 1562 insertions(+)
+ create mode 100644 docs/qa/2026-10-02/FIX-SESSION-LOG.md
+ create mode 100644 docs/qa/2026-10-02/FIXES.md, followed by read-only status/log verification.')
+p.write_text(s)
+PY
+python3 /private/tmp/sentinel-write-fix-docs.py
+
+git diff --check && git add docs/qa/2026-10-02/FIXES.md docs/qa/2026-10-02/FIX-SESSION-LOG.md docs/qa/2026-10-02/SUMMARY.md && git diff --cached --check && git diff --cached --stat
+````
+
+End: 2026-10-03T02:56:01.447193+00:00. Exit: 0; 0.144s.
+
+### 2026-10-03T02:56:20.948375+00:00 — root — command 132
+
+````sh
+git log -3 --format="%h %s" && git status --short && python3 /private/tmp/sentinel-write-fix-docs.py && git diff --check && git add docs/qa/2026-10-02/FIXES.md docs/qa/2026-10-02/FIX-SESSION-LOG.md docs/qa/2026-10-02/SUMMARY.md && git diff --cached --check && git diff --cached --stat && cat docs/qa/2026-10-02/FIXES.md docs/qa/2026-10-02/FIX-SESSION-LOG.md | gitleaks stdin --redact --no-banner
+````
+
+End: 2026-10-03T02:56:21.128984+00:00. Exit: 0; 0.181s. Diagnostic: 7:56PM INF no leaks found.
+
 ## Edit decisions and isolated commits
 
 - 2026-10-03T02:40:35+00:00: `apply_patch` / logged text edits for **fix(FE-001): fail closed in LangChain tool callbacks**, followed by explicit-path staging and local commit `ae7ae46d660a07a898ba71ccccc9f7a85eddfa95`. Root cause, exact fix and proving tests are in the commit body and FIXES.md; no broad staging.
@@ -1471,6 +1547,7 @@ End: 2026-10-03T02:55:19.124622+00:00. Exit: 0; 0.025s. Diagnostic: End: 2026-10
 - 2026-10-03T02:49:24+00:00: `apply_patch` / logged text edits for **fix(FE-003): forward adapter approval idempotency keys**, followed by explicit-path staging and local commit `19d77fb11e76b2318103c9f62d53d3e479bf7260`. Root cause, exact fix and proving tests are in the commit body and FIXES.md; no broad staging.
 - 2026-10-03T02:49:24+00:00: `apply_patch` / logged text edits for **fix(BE-005): retain text from HTTP error responses**, followed by explicit-path staging and local commit `d14759a2701d914e65ced38be83cdba55b38ba00`. Root cause, exact fix and proving tests are in the commit body and FIXES.md; no broad staging.
 - 2026-10-03T02:51:53+00:00: `apply_patch` / logged text edits for **fix(FE-001): reject malformed approval identifiers**, followed by explicit-path staging and local commit `a0edb4c46303d7bbaf3696029348bcf79cc21db6`. Root cause, exact fix and proving tests are in the commit body and FIXES.md; no broad staging.
+- 2026-10-03T02:56:01+00:00: local documentation commit `67da1a2cab946fd81069284abe0f982f20a4a077` — **docs(qa): fix pass log**. See the documentation quoting-error decision below.
 
 ## Decisions, dead ends and final outcome
 
@@ -1483,6 +1560,7 @@ End: 2026-10-03T02:55:19.124622+00:00. Exit: 0; 0.025s. Diagnostic: End: 2026-10
 - 2026-10-03 02:49–02:52 UTC: initial full suite 147 pass on Node 26/24. Node 18 had 14 framework callback failures from missing global WebCrypto; independent non-Sentinel callback control reproduced this upstream runtime prerequisite. Native test-only WebCrypto bootstrap fixed the harness without skips or weakening assertions. Tightened transport tests to require exact error class and request counts.
 - 2026-10-03 02:51 UTC: whole-change gate demonstrated a pre-existing related malformed-ID core bypass. Added two failing tests, then central creation/wait ID guards; committed separate FE-001 follow-up. This was not a newly introduced product regression.
 - 2026-10-03 02:52–02:53 UTC: final whole-change gate at `a0edb4c` passed. Full test list: 149 pass, zero fail/TODO/skip on Node 18.17.1, 24.21.0 and 26.7.0. Build/typecheck/test syntax/diff checks pass; added-code Gitleaks scan passes. No product regression remained, so no revert required.
-- 2026-10-03T02:55:28+00:00: `apply_patch` created the task-local documentation generator, then `python3 /private/tmp/sentinel-write-fix-docs.py` wrote/updated FIXES.md, this ledger and the exact SUMMARY.md link line. Original findings left intact. Outcome: documentation generated from all completed journal records.
+- 2026-10-03 02:56 UTC: a documentation-generator edit used unsafe shell quoting around literal Markdown backticks. The shell expanded an intended command example and created local docs commit `67da1a2` before the planned final refresh; the embedded Python edit then failed with SyntaxError. No remote or product mutation resulted. Preserved the authorized local documentation commit, corrected the generator with apply_patch, and completed a separate final docs log commit. This dead end and actual output are retained in the command ledger.
+- 2026-10-03T02:56:42+00:00: `apply_patch` created/updated the task-local documentation generator, then `python3 /private/tmp/sentinel-write-fix-docs.py` wrote/updated FIXES.md, this ledger and the exact SUMMARY.md link line. Original findings left intact. Outcome: documentation generated from all completed journal records.
 
-The final docs-only commit uses explicit paths and message `docs(qa): fix pass log`. Its result is observable in Git history and the handoff; a commit cannot include its own resulting SHA in its content. No pushes, PR writes, deployments, migrations, credentials/env reads or production requests occurred. Only package installation used external network. Live smoke/demo/schema generation and remote CI remain unrun by authorization boundary.
+The final closing command refreshes this generator output, checks the diff, runs `git add docs/qa/2026-10-02/FIXES.md docs/qa/2026-10-02/FIX-SESSION-LOG.md docs/qa/2026-10-02/SUMMARY.md`, checks the staged diff, and runs `git commit -m "docs(qa): fix pass log"`, followed by read-only status/log verification. Its result is observable in Git history and the handoff; a commit cannot include its own resulting SHA in its content. No pushes, PR writes, deployments, migrations, credentials/env reads or production requests occurred. Only package installation used external network. Live smoke/demo/schema generation and remote CI remain unrun by authorization boundary.
