@@ -1,4 +1,3 @@
-import { knownDefect } from './known-defect.mjs';
 // Offline core QA: every fetch is replaced before a client request can occur.
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -476,7 +475,7 @@ test('BE loopback contract: real HTTP preserves approval payload/auth and reject
   assert.ok(wire.some((entry) => entry.method === 'GET' && entry.path.startsWith('/v1/approvals/qa-action/wait?timeout=')));
 });
 
-test('BE-005: plain-text HTTP error retains useful response detail', { ...knownDefect('BE-005 response body is consumed before text fallback') }, async () => {
+test('BE-005: plain-text HTTP error retains useful response detail', async () => {
   respond(() => new Response('Synthetic gateway unavailable', { status: 502 }));
   await assert.rejects(makeClient().getTenant(), (error) => {
     assert.ok(error instanceof SentinelAPIError);
@@ -484,4 +483,20 @@ test('BE-005: plain-text HTTP error retains useful response detail', { ...knownD
     assert.match(error.message, /Synthetic gateway unavailable/);
     return true;
   });
+});
+
+test('BE-005: plain-text diagnostics are bounded and structured JSON errors still work', async () => {
+  for (const [body, expected] of [
+    ['x'.repeat(700), 'x'.repeat(500)],
+    [JSON.stringify({ detail: 'Synthetic detail' }), 'Synthetic detail'],
+    [JSON.stringify({ message: 'Synthetic message' }), 'Synthetic message'],
+    ['null', 'null'],
+  ]) {
+    respond(() => new Response(body, { status: 502 }));
+    await assert.rejects(makeClient().getTenant(), (error) => {
+      assert.ok(error instanceof SentinelAPIError);
+      assert.equal(error.message, `[502] ${expected}`);
+      return true;
+    });
+  }
 });

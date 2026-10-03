@@ -272,15 +272,15 @@ export class SentinelClient {
       },
     });
     if (!r.ok) {
-      let detail = '';
+      const text = await r.text().catch(() => '');
+      let detail = text.slice(0, 500);
       try {
-        const body = (await r.json()) as Record<string, unknown>;
-        const rawDetail = body['detail'] ?? body['message'] ?? body;
+        const body = JSON.parse(text) as Record<string, unknown> | null;
+        const rawDetail = body?.['detail'] ?? body?.['message'] ?? body;
         detail =
           typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
       } catch {
-        const txt = await r.text().catch(() => '');
-        detail = txt.slice(0, 500);
+        // Non-JSON bodies retain the bounded text read above.
       }
       throw new SentinelAPIError(r.status, detail, url);
     }
