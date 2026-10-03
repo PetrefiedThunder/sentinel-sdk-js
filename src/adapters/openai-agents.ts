@@ -90,6 +90,9 @@ export function gated<T extends FunctionToolLike>(
       riskLevel: opts.riskLevel,
       approvers: opts.approvers,
       timeoutSeconds: opts.timeoutSeconds,
+      idempotencyKey: typeof opts.idempotencyKey === 'function'
+        ? opts.idempotencyKey()
+        : opts.idempotencyKey,
     });
 
     const decision = await sentinel.waitForDecision(

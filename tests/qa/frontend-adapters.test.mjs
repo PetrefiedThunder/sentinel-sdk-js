@@ -1,4 +1,3 @@
-import { knownDefect } from './known-defect.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -73,13 +72,36 @@ for (const [name, build] of Object.entries(integrations)) {
     });
   }
 
-  for (const key of ['qa-stable', () => 'qa-generated']) {
-    test(`FE-003 ${name}: forwards ${typeof key} idempotency key`, { ...knownDefect('FE-003: adapters omit the declared idempotencyKey option') }, async () => {
+  for (const kind of ['string', 'function']) {
+    test(`FE-003 ${name}: forwards ${kind} idempotency key`, async () => {
       const client = stubClient();
-      await build(client, { idempotencyKey: key }, () => 'ok')();
-      assert.equal(client.calls[0].idempotencyKey, typeof key === 'function' ? 'qa-generated' : key);
+      let generated = 0;
+      const idempotencyKey = kind === 'function' ? () => `qa-generated-${++generated}` : 'qa-stable';
+      const invoke = build(client, { idempotencyKey }, () => 'ok');
+      assert.equal(generated, 0, 'keys are generated on invocation, not wrapping');
+      await invoke();
+      await invoke();
+      assert.deepEqual(
+        client.calls.map((call) => call.idempotencyKey),
+        kind === 'function' ? ['qa-generated-1', 'qa-generated-2'] : ['qa-stable', 'qa-stable']
+      );
+      assert.equal(generated, kind === 'function' ? 2 : 0);
     });
   }
+
+  test(`FE-003 ${name}: key generator failure prevents approval and execution`, async () => {
+    const client = stubClient();
+    const failure = new Error('synthetic key generation failure');
+    let executions = 0;
+    let generated = 0;
+    const invoke = build(client, {
+      idempotencyKey() { generated++; throw failure; },
+    }, () => ++executions);
+    await assert.rejects(invoke, (error) => error === failure);
+    assert.equal(generated, 1);
+    assert.equal(client.calls.length, 0);
+    assert.equal(executions, 0);
+  });
 }
 
 test('Mastra preserves tool binding, input, execution context and return value', async () => {

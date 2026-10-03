@@ -92,6 +92,9 @@ export class SentinelCallbackHandler {
       riskLevel: this.opts.riskLevel,
       approvers: this.opts.approvers,
       timeoutSeconds: this.opts.timeoutSeconds,
+      idempotencyKey: typeof this.opts.idempotencyKey === 'function'
+        ? this.opts.idempotencyKey()
+        : this.opts.idempotencyKey,
     });
     if (!approval || typeof approval.action_id !== 'string' || !approval.action_id) {
       throw new SentinelError('Invalid approval response: missing action ID');
