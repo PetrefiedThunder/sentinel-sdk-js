@@ -190,7 +190,7 @@ test('BE idempotency scope control: replayed approval does not deduplicate wrapp
   assert.equal(requests.filter(({ init }) => init.method === 'POST').length, 2);
 });
 
-test('BE-001: mutation during approval wait must not change the executed intent', { ...knownDefect('BE-001 mutable approval arguments') }, async () => {
+test('BE-001: mutation during approval wait must not change the executed intent', async () => {
   let release;
   let started;
   const waiting = new Promise((resolve) => { started = resolve; });
@@ -209,6 +209,22 @@ test('BE-001: mutation during approval wait must not change the executed intent'
   release();
   await result;
   assert.deepEqual(executed, reviewed, 'executed payload must match the human-reviewed request');
+});
+
+test('BE-001: positional arguments are copied before idempotency callbacks can mutate them', async () => {
+  const value = { nested: [1, 2] };
+  const wrapped = makeClient().wrap({
+    idempotencyKey: () => { value.nested.push(999); return 'qa-snapshot'; },
+  }, (label, arg) => {
+    assert.equal(label, 'reviewed');
+    assert.deepEqual(arg, { nested: [1, 2] });
+    assert.notEqual(arg, value);
+    arg.nested.push(3); // The function may still mutate its private copy.
+    return arg;
+  });
+  assert.deepEqual(await wrapped('reviewed', value), { nested: [1, 2, 3] });
+  assert.deepEqual(JSON.parse(requests[0].init.body).arguments, { args: ['reviewed', { nested: [1, 2] }] });
+  assert.deepEqual(value, { nested: [1, 2, 999] });
 });
 
 test('BE-002: approval received after deadline must not execute the action', { ...knownDefect('BE-002 local deadline is not enforced on terminal response') }, async () => {

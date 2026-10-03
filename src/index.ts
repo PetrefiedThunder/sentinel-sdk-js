@@ -378,7 +378,7 @@ export class SentinelClient {
    *
    *   await safeRefund('ch_abc123');
    *
-   * On approval the wrapped fn runs with the original arguments and its
+   * On approval the wrapped fn runs with a private JSON argument snapshot and its
    * return value flows back to the caller. On rejection → ApprovalRejected.
    * On timeout → ApprovalTimeout.
    */
@@ -388,18 +388,20 @@ export class SentinelClient {
   ): (...args: Args) => Promise<R> {
     const fnName = opts.functionName || fn.name || 'anonymous';
     return async (...args: Args): Promise<R> => {
+      ensureJsonSerializable(args);
+      const approvedArgs = JSON.parse(JSON.stringify(args)) as Args;
       // API requires `arguments` be a JSON object (dict). Two ergonomic
       // shapes: if the caller passes exactly one plain-object arg, that
       // object IS the arguments (named-style). Otherwise wrap positional
       // args under `{ args: [...] }`.
       const isPlainObject =
-        args.length === 1 &&
-        args[0] !== null &&
-        typeof args[0] === 'object' &&
-        !Array.isArray(args[0]);
+        approvedArgs.length === 1 &&
+        approvedArgs[0] !== null &&
+        typeof approvedArgs[0] === 'object' &&
+        !Array.isArray(approvedArgs[0]);
       const callArgs: Record<string, unknown> = isPlainObject
-        ? (args[0] as Record<string, unknown>)
-        : { args: args as unknown[] };
+        ? (approvedArgs[0] as Record<string, unknown>)
+        : { args: approvedArgs as unknown[] };
       const idempotencyKey =
         typeof opts.idempotencyKey === 'function'
           ? opts.idempotencyKey()
@@ -422,7 +424,7 @@ export class SentinelClient {
           approval.action_id
         );
       }
-      return await fn(...args);
+      return await fn(...approvedArgs);
     };
   }
 }
