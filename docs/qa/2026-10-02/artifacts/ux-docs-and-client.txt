@@ -1,0 +1,584 @@
+Start: 2026-10-03T01:41:25+00:00
+End: 2026-10-03T01:41:25+00:00
+Command: python3 -c 'from pathlib import Path; files=["CONTRIBUTING.md","examples/demo.mjs","src/index.ts","tsconfig.json",".gitignore"]; [(print("\nFILE: "+p), print("\n".join(f"{i}: {x}" for i,x in enumerate(Path(p).read_text().splitlines(),1)))) for p in files]'
+Exit: 0
+
+
+FILE: CONTRIBUTING.md
+1: # Contributing to Sentinel (JavaScript / TypeScript SDK)
+2: 
+3: Thanks for considering a contribution.
+4: 
+5: ## Quick start
+6: 
+7: ```bash
+8: git clone https://github.com/PetrefiedThunder/sentinel-sdk-js
+9: cd sentinel-sdk-js
+10: npm install
+11: npm run build
+12: npm test
+13: ```
+14: 
+15: To run the live smoke test against a real API key:
+16: 
+17: ```bash
+18: SENTINEL_API_KEY=sk_live_... npm run smoke
+19: ```
+20: 
+21: ## Filing a bug
+22: 
+23: Open an issue at https://github.com/PetrefiedThunder/sentinel-sdk-js/issues
+24: and include:
+25: 
+26: 1. SDK version (`node -e "console.log(require('sentinel-oversight/package.json').version)"`)
+27: 2. Node version (`node --version`)
+28: 3. Minimal reproducible example
+29: 4. Full error / stack trace
+30: 
+31: ## Pull requests
+32: 
+33: 1. Open an issue first if it's a behavior change.
+34: 2. Small, focused PRs.
+35: 3. Add a unit test (`tests/*.test.mjs`) and update the live smoke
+36:    (`tests/smoke.mjs`) if the change is end-to-end.
+37: 4. `npm test` and `npm run build` must pass.
+38: 5. Update `CHANGELOG.md` under `## [Unreleased]`.
+39: 
+40: ## Releasing (maintainers only)
+41: 
+42: 1. Bump `version` in `package.json` + `VERSION` in `src/index.ts`.
+43: 2. Move `## [Unreleased]` into a versioned section in `CHANGELOG.md`.
+44: 3. Commit, tag `vX.Y.Z`, push. GitHub Actions publishes to npm via
+45:    Trusted Publishing (OIDC) — no token needed.
+46: 
+47: ## Security
+48: 
+49: Email security@regengine.co — don't file a public issue.
+50: 
+51: ## Code of conduct
+52: 
+53: Be excellent. Harassment / discrimination → removed from the project.
+
+FILE: examples/demo.mjs
+1: // Sentinel JS SDK demo — equivalent to ../sentinel-examples/demo.py
+2: //
+3: // Run:  SENTINEL_API_KEY=sk_live_... node examples/demo.mjs
+4: //
+5: // (Assumes you ran `npm run build` first, OR `node --experimental-strip-types`)
+6: 
+7: import { configure, oversight } from '../dist/index.js';
+8: 
+9: configure({ apiKey: process.env.SENTINEL_API_KEY });
+10: 
+11: const wireTransfer = oversight(
+12:   { riskLevel: 'high', timeoutSeconds: 300 },
+13:   async (amountCents, recipient, memo) => {
+14:     console.log(`  → executing wire: $${(amountCents / 100).toLocaleString()} → ${recipient}`);
+15:     return {
+16:       id: `tr_${Math.floor(Date.now() / 1000)}`,
+17:       amount: amountCents,
+18:       destination: recipient,
+19:       memo,
+20:       status: 'succeeded',
+21:     };
+22:   }
+23: );
+24: 
+25: console.log('\n🤖 Agent: I need to send a payment to a vendor.');
+26: console.log("   Calling wireTransfer($50,000, 'acct_acme_corp', 'Q2 invoice')…\n");
+27: console.log('⏸  Sentinel paused execution. Email sent to approver.');
+28: console.log('   Open your inbox → click Approve.\n');
+29: 
+30: const started = Date.now();
+31: const receipt = await wireTransfer(50_000_00, 'acct_acme_corp', 'Q2 invoice');
+32: const elapsed = ((Date.now() - started) / 1000).toFixed(1);
+33: 
+34: console.log(`\n✅ Human approved in ${elapsed}s.`);
+35: console.log(`   Receipt:`, receipt);
+36: console.log();
+
+FILE: src/index.ts
+1: /**
+2:  * Sentinel SDK for JavaScript / TypeScript.
+3:  *
+4:  *   import { configure, oversight } from 'sentinel-oversight';
+5:  *
+6:  *   configure({ apiKey: process.env.SENTINEL_API_KEY! });
+7:  *
+8:  *   const wireTransfer = oversight(
+9:  *     { riskLevel: 'high', approvers: ['alice@acme.com'] },
+10:  *     async (amount: number, recipient: string) => {
+11:  *       return stripe.transfers.create({ amount, destination: recipient });
+12:  *     }
+13:  *   );
+14:  *
+15:  *   await wireTransfer(50_000, 'acct_xyz');   // pauses until approved
+16:  *
+17:  * Mirrors the Python SDK (sentinel-oversight on PyPI) including the 0.1.8
+18:  * client-side JSON-serializability check.
+19:  */
+20: 
+21: export const VERSION = '0.1.0';
+22: const USER_AGENT = `sentinel-sdk-js/${VERSION}`;
+23: const DEFAULT_API_URL = 'https://api.pauseapi.app';
+24: 
+25: // ── Types ──────────────────────────────────────────────────────────
+26: export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+27: 
+28: export interface SentinelConfig {
+29:   apiKey: string;
+30:   apiUrl?: string;
+31:   timeoutSeconds?: number;
+32: }
+33: 
+34: export interface OversightOptions {
+35:   riskLevel?: RiskLevel;
+36:   approvers?: string[];
+37:   /**
+38:    * Approval timeout. The API requires a whole number of seconds, so a
+39:    * fractional value is rounded to the nearest second (Math.round) before
+40:    * being sent. Defaults to the client's `timeoutSeconds` (300).
+41:    */
+42:   timeoutSeconds?: number;
+43:   /** Override the function-name shown to approvers (defaults to fn.name). */
+44:   functionName?: string;
+45:   /**
+46:    * Stripe-style idempotency key sent as the `Idempotency-Key` header on
+47:    * approval creation. A string is used as-is; a function is called once per
+48:    * invocation to produce the key.
+49:    */
+50:   idempotencyKey?: string | (() => string);
+51: }
+52: 
+53: /** One page of results from a cursor-paginated list endpoint. */
+54: export interface PageResult<T> {
+55:   data: T[];
+56:   hasMore: boolean;
+57:   nextCursor: string | null;
+58: }
+59: 
+60: export interface ApprovalRecord {
+61:   action_id: string;
+62:   status: 'pending' | 'approved' | 'rejected';
+63:   decision: 'pending' | 'approved' | 'rejected';
+64:   reason?: string | null;
+65:   decided_by?: string | null;
+66:   decided_at?: string | null;
+67:   [key: string]: unknown;
+68: }
+69: 
+70: // ── Errors ─────────────────────────────────────────────────────────
+71: export class SentinelError extends Error {
+72:   constructor(message: string) {
+73:     super(message);
+74:     this.name = 'SentinelError';
+75:   }
+76: }
+77: 
+78: export class SentinelConfigError extends SentinelError {
+79:   constructor(message: string) {
+80:     super(message);
+81:     this.name = 'SentinelConfigError';
+82:   }
+83: }
+84: 
+85: export class SentinelAPIError extends SentinelError {
+86:   constructor(
+87:     public readonly statusCode: number,
+88:     message: string,
+89:     public readonly url?: string
+90:   ) {
+91:     super(`[${statusCode}] ${message}`);
+92:     this.name = 'SentinelAPIError';
+93:   }
+94: }
+95: 
+96: export class ApprovalRejected extends SentinelError {
+97:   constructor(
+98:     public readonly reason: string,
+99:     public readonly actionId: string
+100:   ) {
+101:     super(reason || 'Approval rejected');
+102:     this.name = 'ApprovalRejected';
+103:   }
+104: }
+105: 
+106: export class ApprovalTimeout extends SentinelError {
+107:   constructor(
+108:     public readonly actionId: string,
+109:     public readonly timeoutSeconds: number
+110:   ) {
+111:     super(`Approval timed out after ${timeoutSeconds}s`);
+112:     this.name = 'ApprovalTimeout';
+113:   }
+114: }
+115: 
+116: // ── Helpers ────────────────────────────────────────────────────────
+117: /** Fail-fast if args can't be JSON-encoded. Mirrors Python SDK 0.1.8 fix. */
+118: export function ensureJsonSerializable(value: unknown): void {
+119:   try {
+120:     JSON.stringify(value);
+121:   } catch (e) {
+122:     const msg = e instanceof Error ? e.message : String(e);
+123:     throw new TypeError(
+124:       `oversight arguments must be JSON-serializable. Got: ${msg}. ` +
+125:         `Convert Maps/Sets/BigInts/circular refs/class instances to plain ` +
+126:         `objects/arrays/strings/numbers/booleans/null before the call.`
+127:     );
+128:   }
+129: }
+130: 
+131: /** Wire shape of a paginated list response. */
+132: interface PageEnvelope<T> {
+133:   data: T[];
+134:   has_more: boolean;
+135:   next_cursor: string | null;
+136: }
+137: 
+138: function toPageResult<T>(page: PageEnvelope<T>): PageResult<T> {
+139:   return {
+140:     data: page.data,
+141:     hasMore: page.has_more,
+142:     nextCursor: page.next_cursor,
+143:   };
+144: }
+145: 
+146: /**
+147:  * Coerce an approval timeout to a whole number of seconds.
+148:  *
+149:  * The live API (`/v1/approvals` → ApprovalCreate.timeout_seconds) types this
+150:  * field as `integer` and returns HTTP 422 on a fractional value. Callers may
+151:  * naturally pass a float (e.g. a computed duration), so we round to the
+152:  * nearest second with Math.round before sending — 30.4 → 30, 30.5 → 31 — and
+153:  * clamp to a minimum of 1 so a sub-second value never becomes 0.
+154:  */
+155: function toIntTimeoutSeconds(value: number): number {
+156:   return Math.max(1, Math.round(value));
+157: }
+158: 
+159: function buildQuery(
+160:   params: Record<string, string | number | undefined>
+161: ): string {
+162:   const parts: string[] = [];
+163:   for (const [key, value] of Object.entries(params)) {
+164:     if (value === undefined) continue;
+165:     parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+166:   }
+167:   return parts.length ? `?${parts.join('&')}` : '';
+168: }
+169: 
+170: // ── Client ─────────────────────────────────────────────────────────
+171: export class SentinelClient {
+172:   private readonly apiKey: string;
+173:   private readonly apiUrl: string;
+174:   private readonly defaultTimeoutSeconds: number;
+175: 
+176:   constructor(config: SentinelConfig) {
+177:     if (!config.apiKey) {
+178:       throw new SentinelConfigError(
+179:         'configure({ apiKey }) — apiKey is required'
+180:       );
+181:     }
+182:     this.apiKey = config.apiKey;
+183:     this.apiUrl = (config.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, '');
+184:     this.defaultTimeoutSeconds = config.timeoutSeconds ?? 300;
+185:   }
+186: 
+187:   // ---- low-level HTTP ----
+188:   private async request<T = unknown>(
+189:     path: string,
+190:     init: RequestInit = {}
+191:   ): Promise<T> {
+192:     const url = `${this.apiUrl}${path}`;
+193:     const r = await fetch(url, {
+194:       ...init,
+195:       headers: {
+196:         'User-Agent': USER_AGENT,
+197:         'Content-Type': 'application/json',
+198:         Authorization: `Bearer ${this.apiKey}`,
+199:         ...(init.headers ?? {}),
+200:       },
+201:     });
+202:     if (!r.ok) {
+203:       let detail = '';
+204:       try {
+205:         const body = (await r.json()) as Record<string, unknown>;
+206:         const rawDetail = body['detail'] ?? body['message'] ?? body;
+207:         detail =
+208:           typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
+209:       } catch {
+210:         const txt = await r.text().catch(() => '');
+211:         detail = txt.slice(0, 500);
+212:       }
+213:       throw new SentinelAPIError(r.status, detail, url);
+214:     }
+215:     return (await r.json()) as T;
+216:   }
+217: 
+218:   // ---- approvals ----
+219:   async createApproval(opts: {
+220:     functionName: string;
+221:     arguments: unknown;
+222:     riskLevel?: RiskLevel;
+223:     approvers?: string[];
+224:     /** Whole seconds; a fraction is rounded to the nearest second. */
+225:     timeoutSeconds?: number;
+226:     idempotencyKey?: string;
+227:   }): Promise<ApprovalRecord> {
+228:     ensureJsonSerializable(opts.arguments);
+229:     return this.request<ApprovalRecord>('/v1/approvals', {
+230:       method: 'POST',
+231:       headers: opts.idempotencyKey
+232:         ? { 'Idempotency-Key': opts.idempotencyKey }
+233:         : {},
+234:       body: JSON.stringify({
+235:         function_name: opts.functionName,
+236:         arguments: opts.arguments,
+237:         risk_level: opts.riskLevel ?? 'medium',
+238:         approvers: opts.approvers ?? [],
+239:         // API types timeout_seconds as integer and 422s on a fraction.
+240:         timeout_seconds: toIntTimeoutSeconds(
+241:           opts.timeoutSeconds ?? this.defaultTimeoutSeconds
+242:         ),
+243:       }),
+244:     });
+245:   }
+246: 
+247:   /**
+248:    * List approvals one page at a time (cursor pagination). Always sends
+249:    * `limit` (default 50) so the server returns the paginated envelope.
+250:    */
+251:   async listApprovals(opts?: {
+252:     status?: string;
+253:     limit?: number;
+254:     cursor?: string;
+255:   }): Promise<PageResult<ApprovalRecord>> {
+256:     const qs = buildQuery({
+257:       status: opts?.status,
+258:       limit: opts?.limit ?? 50,
+259:       cursor: opts?.cursor,
+260:     });
+261:     const page = await this.request<PageEnvelope<ApprovalRecord>>(
+262:       `/v1/approvals${qs}`
+263:     );
+264:     return toPageResult(page);
+265:   }
+266: 
+267:   /**
+268:    * Iterate over all approvals, transparently following nextCursor across
+269:    * pages until the server reports hasMore=false.
+270:    */
+271:   async *iterApprovals(opts?: {
+272:     status?: string;
+273:     limit?: number;
+274:   }): AsyncGenerator<ApprovalRecord> {
+275:     let cursor: string | undefined;
+276:     while (true) {
+277:       const page = await this.listApprovals({ ...opts, cursor });
+278:       for (const item of page.data) yield item;
+279:       if (!page.hasMore || page.nextCursor === null) return;
+280:       cursor = page.nextCursor;
+281:     }
+282:   }
+283: 
+284:   async getApproval(actionId: string): Promise<ApprovalRecord> {
+285:     return this.request<ApprovalRecord>(
+286:       `/v1/approvals/${encodeURIComponent(actionId)}`
+287:     );
+288:   }
+289: 
+290:   /**
+291:    * Block until the approval is decided or the timeout elapses. Uses the
+292:    * server-side long-poll endpoint when available (single RTT per ~30 s
+293:    * window via Postgres LISTEN/NOTIFY); falls back to plain polling on older
+294:    * servers that don't have /wait.
+295:    */
+296:   async waitForDecision(
+297:     actionId: string,
+298:     timeoutSeconds?: number
+299:   ): Promise<ApprovalRecord> {
+300:     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
+301:     const deadline = Date.now() + timeout * 1000;
+302:     while (true) {
+303:       const remaining = Math.max(
+304:         1,
+305:         Math.min(30, Math.floor((deadline - Date.now()) / 1000))
+306:       );
+307:       let data: ApprovalRecord;
+308:       try {
+309:         data = await this.request<ApprovalRecord>(
+310:           `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`
+311:         );
+312:       } catch (e) {
+313:         if (e instanceof SentinelAPIError && e.statusCode === 404) {
+314:           data = await this.getApproval(actionId);
+315:         } else {
+316:           throw e;
+317:         }
+318:       }
+319:       const status = data.status ?? data.decision;
+320:       if (status === 'approved' || status === 'rejected') return data;
+321:       if (Date.now() >= deadline) {
+322:         throw new ApprovalTimeout(actionId, timeout);
+323:       }
+324:     }
+325:   }
+326: 
+327:   // ---- tenant ----
+328:   async getTenant(): Promise<Record<string, unknown>> {
+329:     return this.request('/v1/tenants/me');
+330:   }
+331: 
+332:   async setDefaultApprovers(
+333:     approvers: string[]
+334:   ): Promise<Record<string, unknown>> {
+335:     return this.request('/v1/tenants/me', {
+336:       method: 'PATCH',
+337:       body: JSON.stringify({ default_approvers: approvers }),
+338:     });
+339:   }
+340: 
+341:   // ---- audit ----
+342:   async listAuditEvents(actionId?: string): Promise<unknown[]> {
+343:     const qs = actionId
+344:       ? `?action_id=${encodeURIComponent(actionId)}`
+345:       : '';
+346:     return this.request<unknown[]>(`/v1/audit-events${qs}`);
+347:   }
+348: 
+349:   /**
+350:    * List audit events one page at a time (cursor pagination). Unlike the
+351:    * legacy listAuditEvents(), this always sends `limit` (default 50) so the
+352:    * server returns the paginated envelope.
+353:    */
+354:   async listAuditEventsPage(opts?: {
+355:     actionId?: string;
+356:     limit?: number;
+357:     cursor?: string;
+358:   }): Promise<PageResult<Record<string, unknown>>> {
+359:     const qs = buildQuery({
+360:       action_id: opts?.actionId,
+361:       limit: opts?.limit ?? 50,
+362:       cursor: opts?.cursor,
+363:     });
+364:     const page = await this.request<PageEnvelope<Record<string, unknown>>>(
+365:       `/v1/audit-events${qs}`
+366:     );
+367:     return toPageResult(page);
+368:   }
+369: 
+370:   // ---- the decorator surface ----
+371:   /**
+372:    * Wrap a function so each call pauses for human approval before executing.
+373:    *
+374:    *   const safeRefund = client.wrap(
+375:    *     { riskLevel: 'critical', approvers: ['alice@acme.com'] },
+376:    *     async (chargeId: string) => stripe.refunds.create({ charge: chargeId })
+377:    *   );
+378:    *
+379:    *   await safeRefund('ch_abc123');
+380:    *
+381:    * On approval the wrapped fn runs with the original arguments and its
+382:    * return value flows back to the caller. On rejection → ApprovalRejected.
+383:    * On timeout → ApprovalTimeout.
+384:    */
+385:   wrap<Args extends unknown[], R>(
+386:     opts: OversightOptions,
+387:     fn: (...args: Args) => Promise<R> | R
+388:   ): (...args: Args) => Promise<R> {
+389:     const fnName = opts.functionName || fn.name || 'anonymous';
+390:     return async (...args: Args): Promise<R> => {
+391:       // API requires `arguments` be a JSON object (dict). Two ergonomic
+392:       // shapes: if the caller passes exactly one plain-object arg, that
+393:       // object IS the arguments (named-style). Otherwise wrap positional
+394:       // args under `{ args: [...] }`.
+395:       const isPlainObject =
+396:         args.length === 1 &&
+397:         args[0] !== null &&
+398:         typeof args[0] === 'object' &&
+399:         !Array.isArray(args[0]);
+400:       const callArgs: Record<string, unknown> = isPlainObject
+401:         ? (args[0] as Record<string, unknown>)
+402:         : { args: args as unknown[] };
+403:       const idempotencyKey =
+404:         typeof opts.idempotencyKey === 'function'
+405:           ? opts.idempotencyKey()
+406:           : opts.idempotencyKey;
+407:       const approval = await this.createApproval({
+408:         functionName: fnName,
+409:         arguments: callArgs,
+410:         riskLevel: opts.riskLevel,
+411:         approvers: opts.approvers,
+412:         timeoutSeconds: opts.timeoutSeconds,
+413:         idempotencyKey,
+414:       });
+415:       const decision = await this.waitForDecision(
+416:         approval.action_id,
+417:         opts.timeoutSeconds
+418:       );
+419:       if (decision.decision === 'rejected' || decision.status === 'rejected') {
+420:         throw new ApprovalRejected(
+421:           (decision.reason as string) || 'Approval rejected',
+422:           approval.action_id
+423:         );
+424:       }
+425:       return await fn(...args);
+426:     };
+427:   }
+428: }
+429: 
+430: // ── Module-level convenience: configure() + oversight() ────────────
+431: let _defaultClient: SentinelClient | null = null;
+432: 
+433: export function configure(config: SentinelConfig): SentinelClient {
+434:   _defaultClient = new SentinelClient(config);
+435:   return _defaultClient;
+436: }
+437: 
+438: export function getClient(): SentinelClient {
+439:   if (!_defaultClient) {
+440:     throw new SentinelConfigError(
+441:       'Call configure({ apiKey: ... }) before using oversight()'
+442:     );
+443:   }
+444:   return _defaultClient;
+445: }
+446: 
+447: export function oversight<Args extends unknown[], R>(
+448:   opts: OversightOptions,
+449:   fn: (...args: Args) => Promise<R> | R
+450: ): (...args: Args) => Promise<R> {
+451:   return getClient().wrap(opts, fn);
+452: }
+
+FILE: tsconfig.json
+1: {
+2:   "compilerOptions": {
+3:     "target": "ES2022",
+4:     "module": "ESNext",
+5:     "moduleResolution": "Bundler",
+6:     "lib": ["ES2022"],
+7:     "outDir": "./dist",
+8:     "rootDir": "./src",
+9:     "declaration": true,
+10:     "declarationMap": true,
+11:     "sourceMap": true,
+12:     "strict": true,
+13:     "noUncheckedIndexedAccess": true,
+14:     "esModuleInterop": true,
+15:     "skipLibCheck": true,
+16:     "forceConsistentCasingInFileNames": true,
+17:     "resolveJsonModule": true
+18:   },
+19:   "include": ["src/**/*"],
+20:   "exclude": ["node_modules", "dist", "tests", "examples"]
+21: }
+
+FILE: .gitignore
+1: node_modules/
+2: dist/
+3: *.tgz
+4: .DS_Store
+5: .env
+6: .env.local
+7: npm-debug.log*

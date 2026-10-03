@@ -1,0 +1,13 @@
+Start: 2026-10-03T01:48:09+00:00
+End: 2026-10-03T01:48:09+00:00
+Command: git status --short -- docs/qa/2026-10-02/FRONTEND-LOG.md docs/qa/2026-10-02/FRONTEND-REPORT.md tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/frontend-consumer.mts tests/qa/frontend-consumer-control.mts tests/qa/frontend-framework-types.mts tests/qa/frontend-framework-runtime.mjs
+Exit: 0
+
+?? docs/qa/2026-10-02/FRONTEND-LOG.md
+?? docs/qa/2026-10-02/FRONTEND-REPORT.md
+?? tests/qa/frontend-adapters.test.mjs
+?? tests/qa/frontend-consumer-control.mts
+?? tests/qa/frontend-consumer.mts
+?? tests/qa/frontend-framework-runtime.mjs
+?? tests/qa/frontend-framework-types.mts
+?? tests/qa/frontend-langchain.integration.test.mjs

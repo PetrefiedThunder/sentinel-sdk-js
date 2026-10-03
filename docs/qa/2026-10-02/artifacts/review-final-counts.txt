@@ -1,0 +1,14 @@
+Start: 2026-10-03T01:51:20+00:00
+End: 2026-10-03T01:51:20+00:00
+Command: python3 -c 'from pathlib import Path; p=Path("docs/qa/2026-10-02/artifacts/review-final-test-command.txt"); print("\n".join(line for line in p.read_text().splitlines() if line.startswith("ℹ ") or "requests ran before a timer" in line))'
+Exit: 0
+
+ℹ tests 110
+ℹ suites 0
+ℹ pass 86
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 24
+ℹ duration_ms 697.711208
+  AssertionError [ERR_ASSERTION]: 6 requests ran before a timer/event-loop turn; fallback must be paced

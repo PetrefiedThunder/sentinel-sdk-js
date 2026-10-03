@@ -1,0 +1,27 @@
+Start: 2026-10-03T01:45:46+00:00
+End: 2026-10-03T01:45:46+00:00
+Command: git diff -- package.json
+Exit: 0
+
+diff --git a/package.json b/package.json
+index e94505c..ca68500 100644
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "sentinel-oversight",
+   "version": "0.1.0",
+-  "description": "Human-in-the-loop approval for AI agent actions — one wrapper, magic-link approve/reject.",
++  "description": "Human-in-the-loop approval for AI agent actions \u2014 one wrapper, magic-link approve/reject.",
+   "type": "module",
+   "main": "./dist/index.js",
+   "types": "./dist/index.d.ts",
+@@ -35,7 +35,7 @@
+   "scripts": {
+     "build": "tsc -p tsconfig.json",
+     "typecheck": "tsc --noEmit -p tsconfig.json",
+-    "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs",
++    "test": "node --test tests/*.test.mjs tests/qa/*.test.mjs",
+     "smoke": "node tests/smoke.mjs",
+     "demo": "node examples/demo.mjs",
+     "gen:types": "openapi-typescript https://api.pauseapi.app/openapi.json -o src/generated/api.d.ts",

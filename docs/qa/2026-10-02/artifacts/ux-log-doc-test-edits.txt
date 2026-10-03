@@ -1,0 +1,5 @@
+Start: 2026-10-03T01:44:02+00:00
+End: 2026-10-03T01:44:02+00:00
+Command: python3 -c 'from pathlib import Path; from datetime import datetime, timezone; p=Path("docs/qa/2026-10-02/UX-LOG.md"); text=p.read_text().replace("2026-10-03T01:43:00Z: Initialized", "2026-10-03T01:42:00Z: Initialized"); stamp=datetime.now(timezone.utc).isoformat(timespec="seconds"); p.write_text(text+f"\n### {stamp} — test edits\n\nAdded tests/qa/ux-docs.test.mjs via apply_patch: execute README quickstart and Errors blocks with TypeScript transpilation and synthetic stubs; positive approval/rejection/configuration/return-value/version cases; expected failures keyed UX-001/002/003/004. Added a subprocess-only demo failure probe whose fetch always throws before any network access. Corrected the initial log setup timestamp to its runner timestamp. Product source and documentation unchanged.\n")'
+Exit: 0
+

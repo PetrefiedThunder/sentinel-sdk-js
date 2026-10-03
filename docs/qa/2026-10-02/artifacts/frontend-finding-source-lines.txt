@@ -1,0 +1,356 @@
+Start: 2026-10-03T01:45:57+00:00
+End: 2026-10-03T01:45:57+00:00
+Command: python3 -c 'from pathlib import Path; files={"src/adapters/langchain.ts":(52,111),"src/adapters/ai-sdk.ts":(45,97),"src/adapters/openai-agents.ts":(49,105),"src/adapters/mastra.ts":(39,97),"package.json":(1,104),"README.md":(9,22),".gitignore":(1,7)};[(print("FILE", name),*[print(f"{i}: {line}") for i,line in enumerate(Path(name).read_text().splitlines(),1) if bounds[0]<=i<=bounds[1]]) for name,bounds in files.items()]'
+Exit: 0
+
+FILE src/adapters/langchain.ts
+52: }
+53: 
+54: /**
+55:  * Drop into any LangChain.js call as a `callbacks: []` entry. Compatible with
+56:  * `BaseCallbackHandler` via structural typing — no langchain import required.
+57:  */
+58: export class SentinelCallbackHandler {
+59:   // BaseCallbackHandler-compatible fields
+60:   name = 'SentinelCallbackHandler';
+61:   awaitHandlers = true; // LangChain must await us; we can't pause non-blocking
+62:   ignoreLLM = true; // we don't gate LLM calls, only tool execution
+63:   ignoreChain = true;
+64:   ignoreAgent = true;
+65:   ignoreRetriever = true;
+66: 
+67:   constructor(private readonly opts: SentinelCallbackOptions = {}) {}
+68: 
+69:   async handleToolStart(
+70:     tool: unknown,
+71:     input: unknown,
+72:     _runId: string,
+73:     _parentRunId?: string,
+74:     _tags?: string[],
+75:     _metadata?: Record<string, unknown>,
+76:     runName?: string
+77:   ): Promise<void> {
+78:     const toolName = this.deriveName(tool, runName);
+79: 
+80:     if (this.opts.toolAllowlist && !this.opts.toolAllowlist.includes(toolName)) return;
+81:     if (this.opts.toolDenylist?.includes(toolName)) return;
+82: 
+83:     const client = this.opts.client ?? getClient();
+84:     const args = this.normalizeArguments(input);
+85: 
+86:     const approval = await client.createApproval({
+87:       functionName: toolName,
+88:       arguments: args,
+89:       riskLevel: this.opts.riskLevel,
+90:       approvers: this.opts.approvers,
+91:       timeoutSeconds: this.opts.timeoutSeconds,
+92:     });
+93: 
+94:     const decision = await client.waitForDecision(
+95:       approval.action_id,
+96:       this.opts.timeoutSeconds
+97:     );
+98: 
+99:     if (decision.decision === 'rejected' || decision.status === 'rejected') {
+100:       throw new ApprovalRejected(
+101:         (decision.reason as string) || 'Approval rejected by Sentinel',
+102:         approval.action_id
+103:       );
+104:     }
+105:     // approved → return; LangChain proceeds to actually invoke the tool
+106:   }
+107: 
+108:   private deriveName(tool: unknown, runName: string | undefined): string {
+109:     if (typeof runName === 'string' && runName) return runName;
+110:     if (tool && typeof tool === 'object') {
+111:       const t = tool as { name?: unknown; id?: unknown };
+FILE src/adapters/ai-sdk.ts
+45: import {
+46:   ApprovalRejected,
+47:   type OversightOptions,
+48:   SentinelClient,
+49:   getClient,
+50: } from '../index.js';
+51: 
+52: export interface AiSdkGateOptions extends OversightOptions {
+53:   client?: SentinelClient;
+54: }
+55: 
+56: interface AiSdkToolLike {
+57:   description?: string;
+58:   execute?: (...args: unknown[]) => unknown | Promise<unknown>;
+59:   [key: string]: unknown;
+60: }
+61: 
+62: export function gated<T extends AiSdkToolLike>(
+63:   tool: T,
+64:   opts: AiSdkGateOptions = {}
+65: ): T {
+66:   if (typeof tool.execute !== 'function') {
+67:     // Tools without execute() are client-executed / approval-by-other-means;
+68:     // there is nothing for Sentinel to gate.
+69:     throw new TypeError(
+70:       'sentinel-oversight/ai-sdk: gated() requires a tool with an execute() function'
+71:     );
+72:   }
+73: 
+74:   const sentinel = opts.client ?? getClient();
+75:   const toolName = opts.functionName ?? 'ai_sdk_tool';
+76:   const originalExecute = tool.execute.bind(tool);
+77: 
+78:   const wrappedExecute = async (...args: unknown[]): Promise<unknown> => {
+79:     // AI SDK calls execute(input, options). `input` is the parsed
+80:     // inputSchema value — that's what we show to the human approver.
+81:     const input = args[0];
+82: 
+83:     const normalized: Record<string, unknown> =
+84:       input && typeof input === 'object' && !Array.isArray(input)
+85:         ? (input as Record<string, unknown>)
+86:         : { input };
+87: 
+88:     const approval = await sentinel.createApproval({
+89:       functionName: toolName,
+90:       arguments: normalized,
+91:       riskLevel: opts.riskLevel,
+92:       approvers: opts.approvers,
+93:       timeoutSeconds: opts.timeoutSeconds,
+94:     });
+95: 
+96:     const decision = await sentinel.waitForDecision(
+97:       approval.action_id,
+FILE src/adapters/openai-agents.ts
+49:   ApprovalRejected,
+50:   type OversightOptions,
+51:   SentinelClient,
+52:   getClient,
+53: } from '../index.js';
+54: 
+55: export interface OpenAiAgentsGateOptions extends OversightOptions {
+56:   client?: SentinelClient;
+57: }
+58: 
+59: interface FunctionToolLike {
+60:   name?: string;
+61:   description?: string;
+62:   invoke: (...args: unknown[]) => unknown | Promise<unknown>;
+63:   [key: string]: unknown;
+64: }
+65: 
+66: export function gated<T extends FunctionToolLike>(
+67:   tool: T,
+68:   opts: OpenAiAgentsGateOptions = {}
+69: ): T {
+70:   if (typeof tool.invoke !== 'function') {
+71:     // Only function tools (created via tool({...})) have invoke(); hosted /
+72:     // built-in tools are executed server-side and can't be gated here.
+73:     throw new TypeError(
+74:       'sentinel-oversight/openai-agents: gated() requires a function tool with an invoke() method'
+75:     );
+76:   }
+77: 
+78:   const sentinel = opts.client ?? getClient();
+79:   const toolName = opts.functionName ?? tool.name ?? 'openai_agents_tool';
+80:   const originalInvoke = tool.invoke.bind(tool);
+81: 
+82:   const wrappedInvoke = async (...args: unknown[]): Promise<unknown> => {
+83:     // The SDK calls invoke(runContext, input, details) where `input` is the
+84:     // raw JSON-string of arguments the model produced. Parse it to a plain
+85:     // object so the human approver sees structured arguments.
+86:     const rawInput = args[1];
+87:     const normalized = normalizeArguments(rawInput);
+88: 
+89:     const approval = await sentinel.createApproval({
+90:       functionName: toolName,
+91:       arguments: normalized,
+92:       riskLevel: opts.riskLevel,
+93:       approvers: opts.approvers,
+94:       timeoutSeconds: opts.timeoutSeconds,
+95:     });
+96: 
+97:     const decision = await sentinel.waitForDecision(
+98:       approval.action_id,
+99:       opts.timeoutSeconds
+100:     );
+101: 
+102:     if (decision.decision === 'rejected' || decision.status === 'rejected') {
+103:       throw new ApprovalRejected(
+104:         (decision.reason as string) || 'Approval rejected by Sentinel',
+105:         approval.action_id
+FILE src/adapters/mastra.ts
+39:   SentinelClient,
+40:   getClient,
+41: } from '../index.js';
+42: 
+43: export interface MastraGateOptions extends OversightOptions {
+44:   client?: SentinelClient;
+45: }
+46: 
+47: interface MastraToolLike {
+48:   id?: string;
+49:   description?: string;
+50:   execute: (...args: unknown[]) => unknown | Promise<unknown>;
+51:   [key: string]: unknown;
+52: }
+53: 
+54: export function gated<T extends MastraToolLike>(
+55:   tool: T,
+56:   opts: MastraGateOptions = {}
+57: ): T {
+58:   const sentinel = opts.client ?? getClient();
+59:   const toolName = opts.functionName ?? tool.id ?? 'mastra_tool';
+60:   const originalExecute = tool.execute.bind(tool);
+61: 
+62:   const wrappedExecute = async (...args: unknown[]): Promise<unknown> => {
+63:     // Mastra passes a single object: { context, runtimeContext, ... }.
+64:     // The `context` field is the parsed inputSchema — that's what we want
+65:     // shown to the human approver.
+66:     const first = args[0];
+67:     const ctx =
+68:       first &&
+69:       typeof first === 'object' &&
+70:       'context' in (first as Record<string, unknown>)
+71:         ? (first as { context: unknown }).context
+72:         : first;
+73: 
+74:     const normalized: Record<string, unknown> =
+75:       ctx && typeof ctx === 'object' && !Array.isArray(ctx)
+76:         ? (ctx as Record<string, unknown>)
+77:         : { input: ctx };
+78: 
+79:     const approval = await sentinel.createApproval({
+80:       functionName: toolName,
+81:       arguments: normalized,
+82:       riskLevel: opts.riskLevel,
+83:       approvers: opts.approvers,
+84:       timeoutSeconds: opts.timeoutSeconds,
+85:     });
+86: 
+87:     const decision = await sentinel.waitForDecision(
+88:       approval.action_id,
+89:       opts.timeoutSeconds
+90:     );
+91: 
+92:     if (decision.decision === 'rejected' || decision.status === 'rejected') {
+93:       throw new ApprovalRejected(
+94:         (decision.reason as string) || 'Approval rejected by Sentinel',
+95:         approval.action_id
+96:       );
+97:     }
+FILE package.json
+1: {
+2:   "name": "sentinel-oversight",
+3:   "version": "0.1.0",
+4:   "description": "Human-in-the-loop approval for AI agent actions \u2014 one wrapper, magic-link approve/reject.",
+5:   "type": "module",
+6:   "main": "./dist/index.js",
+7:   "types": "./dist/index.d.ts",
+8:   "exports": {
+9:     ".": {
+10:       "import": "./dist/index.js",
+11:       "types": "./dist/index.d.ts"
+12:     },
+13:     "./langchain": {
+14:       "import": "./dist/adapters/langchain.js",
+15:       "types": "./dist/adapters/langchain.d.ts"
+16:     },
+17:     "./mastra": {
+18:       "import": "./dist/adapters/mastra.js",
+19:       "types": "./dist/adapters/mastra.d.ts"
+20:     },
+21:     "./ai-sdk": {
+22:       "import": "./dist/adapters/ai-sdk.js",
+23:       "types": "./dist/adapters/ai-sdk.d.ts"
+24:     },
+25:     "./openai-agents": {
+26:       "import": "./dist/adapters/openai-agents.js",
+27:       "types": "./dist/adapters/openai-agents.d.ts"
+28:     }
+29:   },
+30:   "files": [
+31:     "dist",
+32:     "README.md",
+33:     "LICENSE"
+34:   ],
+35:   "scripts": {
+36:     "build": "tsc -p tsconfig.json",
+37:     "typecheck": "tsc --noEmit -p tsconfig.json",
+38:     "test": "node --test tests/*.test.mjs tests/qa/*.test.mjs",
+39:     "smoke": "node tests/smoke.mjs",
+40:     "demo": "node examples/demo.mjs",
+41:     "gen:types": "openapi-typescript https://api.pauseapi.app/openapi.json -o src/generated/api.d.ts",
+42:     "prepublishOnly": "npm run build"
+43:   },
+44:   "keywords": [
+45:     "ai",
+46:     "agent",
+47:     "approval",
+48:     "human-in-the-loop",
+49:     "sentinel",
+50:     "agent-safety",
+51:     "llm",
+52:     "guardrails",
+53:     "oversight"
+54:   ],
+55:   "author": "Christopher Sellers / RegEngine, Inc.",
+56:   "license": "MIT",
+57:   "repository": {
+58:     "type": "git",
+59:     "url": "https://github.com/PetrefiedThunder/sentinel-sdk-js"
+60:   },
+61:   "homepage": "https://pauseapi.app",
+62:   "bugs": "https://github.com/PetrefiedThunder/sentinel-sdk-js/issues",
+63:   "engines": {
+64:     "node": ">=18.17"
+65:   },
+66:   "peerDependencies": {
+67:     "@openai/agents": ">=0.1.0",
+68:     "ai": ">=4.0.0"
+69:   },
+70:   "peerDependenciesMeta": {
+71:     "@openai/agents": {
+72:       "optional": true
+73:     },
+74:     "ai": {
+75:       "optional": true
+76:     }
+77:   },
+78:   "overrides": {
+79:     "undici": "^6.29.0"
+80:   },
+81:   "devDependencies": {
+82:     "@semantic-release/changelog": "^7.0.0",
+83:     "@semantic-release/commit-analyzer": "^13.0.1",
+84:     "@semantic-release/git": "^11.0.1",
+85:     "@semantic-release/github": "^12.0.9",
+86:     "@semantic-release/npm": "^13.1.5",
+87:     "@semantic-release/release-notes-generator": "^14.1.1",
+88:     "@types/node": "^26.4.1",
+89:     "conventional-changelog-conventionalcommits": "^10.2.1",
+90:     "openapi-typescript": "^7.4.0",
+91:     "semantic-release": "^25.0.9",
+92:     "typescript": "^5.5.0"
+93:   }
+94: }
+FILE README.md
+9: 
+10: One wrapper. Your function pauses execution, a human gets an email with
+11: Approve/Reject buttons, and the function only runs once they click Approve.
+12: 
+13: > ⚠️ **The JS/TS SDK is pre-release — not yet published on npm.**
+14: > Install directly from git until the first npm release:
+15: >
+16: > ```bash
+17: > npm install github:PetrefiedThunder/sentinel-sdk-js
+18: > ```
+19: >
+20: > `npm install sentinel-oversight` (below) will work once the package is
+21: > published.
+22: 
+FILE .gitignore
+1: node_modules/
+2: dist/
+3: *.tgz
+4: .DS_Store
+5: .env
+6: .env.local
+7: npm-debug.log*

@@ -1,0 +1,10 @@
+Start: 2026-10-03T01:42:29+00:00
+End: 2026-10-03T01:42:29+00:00
+Command: python3 -c 'from pathlib import Path; print("built entry:",Path("dist/index.js").is_file()); print("TypeScript available:",Path("node_modules/typescript/lib/typescript.js").is_file()); print("existing QA tests:"); print("\n".join(str(p) for p in Path("tests/qa").glob("*")))'
+Exit: 0
+
+built entry: True
+TypeScript available: True
+existing QA tests:
+tests/qa/frontend-consumer.mts
+tests/qa/frontend-consumer-control.mts

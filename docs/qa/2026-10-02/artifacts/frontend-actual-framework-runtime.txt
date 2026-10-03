@@ -1,0 +1,7 @@
+Start: 2026-10-03T01:46:28+00:00
+End: 2026-10-03T01:46:29+00:00
+Command: node /private/tmp/sentinel-qa-tools/frontend-framework-runtime.mjs
+Exit: 0
+
+{"decision":"approved","approvals":2,"executions":2,"result":"PASS"}
+{"decision":"rejected","approvals":2,"executions":0,"result":"PASS"}

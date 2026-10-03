@@ -1,0 +1,83 @@
+Start: 2026-10-03T01:45:04+00:00
+End: 2026-10-03T01:45:04+00:00
+Command: sh -c 'rg -n "node_modules/npm/node_modules/(tar|undici)|node_modules/@semantic-release/npm|node_modules/npm\"|\"version\": \"7.5.16\"|\"version\": \"6.26.0\"" package-lock.json && nl -ba package.json | sed -n "32,110p" && du -sh docs/qa/2026-10-02 && git diff --stat'
+Exit: 0
+
+668:    "node_modules/@semantic-release/npm": {
+698:    "node_modules/@semantic-release/npm/node_modules/@semantic-release/error": {
+708:    "node_modules/@semantic-release/npm/node_modules/aggregate-error": {
+725:    "node_modules/@semantic-release/npm/node_modules/clean-stack": {
+741:    "node_modules/@semantic-release/npm/node_modules/execa": {
+768:    "node_modules/@semantic-release/npm/node_modules/get-stream": {
+785:    "node_modules/@semantic-release/npm/node_modules/indent-string": {
+2675:    "node_modules/npm": {
+4460:    "node_modules/npm/node_modules/tar": {
+4461:      "version": "7.5.16",
+4556:    "node_modules/npm/node_modules/undici": {
+4557:      "version": "6.26.0",
+    32	    "README.md",
+    33	    "LICENSE"
+    34	  ],
+    35	  "scripts": {
+    36	    "build": "tsc -p tsconfig.json",
+    37	    "typecheck": "tsc --noEmit -p tsconfig.json",
+    38	    "test": "node --test tests/*.test.mjs tests/qa/*.test.mjs",
+    39	    "smoke": "node tests/smoke.mjs",
+    40	    "demo": "node examples/demo.mjs",
+    41	    "gen:types": "openapi-typescript https://api.pauseapi.app/openapi.json -o src/generated/api.d.ts",
+    42	    "prepublishOnly": "npm run build"
+    43	  },
+    44	  "keywords": [
+    45	    "ai",
+    46	    "agent",
+    47	    "approval",
+    48	    "human-in-the-loop",
+    49	    "sentinel",
+    50	    "agent-safety",
+    51	    "llm",
+    52	    "guardrails",
+    53	    "oversight"
+    54	  ],
+    55	  "author": "Christopher Sellers / RegEngine, Inc.",
+    56	  "license": "MIT",
+    57	  "repository": {
+    58	    "type": "git",
+    59	    "url": "https://github.com/PetrefiedThunder/sentinel-sdk-js"
+    60	  },
+    61	  "homepage": "https://pauseapi.app",
+    62	  "bugs": "https://github.com/PetrefiedThunder/sentinel-sdk-js/issues",
+    63	  "engines": {
+    64	    "node": ">=18.17"
+    65	  },
+    66	  "peerDependencies": {
+    67	    "@openai/agents": ">=0.1.0",
+    68	    "ai": ">=4.0.0"
+    69	  },
+    70	  "peerDependenciesMeta": {
+    71	    "@openai/agents": {
+    72	      "optional": true
+    73	    },
+    74	    "ai": {
+    75	      "optional": true
+    76	    }
+    77	  },
+    78	  "overrides": {
+    79	    "undici": "^6.29.0"
+    80	  },
+    81	  "devDependencies": {
+    82	    "@semantic-release/changelog": "^7.0.0",
+    83	    "@semantic-release/commit-analyzer": "^13.0.1",
+    84	    "@semantic-release/git": "^11.0.1",
+    85	    "@semantic-release/github": "^12.0.9",
+    86	    "@semantic-release/npm": "^13.1.5",
+    87	    "@semantic-release/release-notes-generator": "^14.1.1",
+    88	    "@types/node": "^26.4.1",
+    89	    "conventional-changelog-conventionalcommits": "^10.2.1",
+    90	    "openapi-typescript": "^7.4.0",
+    91	    "semantic-release": "^25.0.9",
+    92	    "typescript": "^5.5.0"
+    93	  }
+    94	}
+940K	docs/qa/2026-10-02
+ package.json | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

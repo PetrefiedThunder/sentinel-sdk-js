@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:46:28+00:00
+End: 2026-10-03T01:46:28+00:00
+Command: python3 -c 'from pathlib import Path; import shutil; src=Path("tests/qa/frontend-framework-runtime.mjs"); dst=Path("/private/tmp/sentinel-qa-tools/frontend-framework-runtime.mjs"); shutil.copyfile(src,dst); print("Copied",src,"to isolated consumer")'
+Exit: 0
+
+Copied tests/qa/frontend-framework-runtime.mjs to isolated consumer

@@ -1,0 +1,10 @@
+Start: 2026-10-03T01:50:17+00:00
+End: 2026-10-03T01:50:17+00:00
+Command: python3 -
+Exit: 0
+
+src/index.ts [316, 317, 440, 441, 442, 443]
+src/adapters/ai-sdk.ts []
+src/adapters/langchain.ts [129, 130]
+src/adapters/mastra.ts []
+src/adapters/openai-agents.ts [126, 132, 133, 134, 135]

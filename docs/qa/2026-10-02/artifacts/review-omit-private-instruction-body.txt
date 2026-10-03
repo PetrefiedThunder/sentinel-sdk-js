@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:51:53+00:00
+End: 2026-10-03T01:51:53+00:00
+Command: python3 -c 'from pathlib import Path; p=Path("docs/qa/2026-10-02/artifacts/review-source-scope-and-instructions.txt"); text=p.read_text(); start=text.index("# Global instructions for Codex (user: Christopher)"); end=text.index("WORKFLOWS\n", start); p.write_text(text[:start]+"[Non-repository global instruction body omitted from publishable artifact; read was logged, no QA evidence removed.]\n\n"+text[end:]); print("Omitted non-repository personal/global instruction body from reviewer artifact; repository source, workflow and identity evidence retained.")'
+Exit: 0
+
+Omitted non-repository personal/global instruction body from reviewer artifact; repository source, workflow and identity evidence retained.

@@ -1,0 +1,56 @@
+Start: 2026-10-03T01:52:46+00:00
+End: 2026-10-03T01:52:46+00:00
+Command: python3 -c 'from pathlib import Path; import re,json,collections,subprocess; root=Path("docs/qa/2026-10-02"); findings=(root/"FINDINGS.md").read_text(); rows=[line.split("|")[1:4] for line in findings.splitlines() if re.match(r"\| (?:BE|FE|UX)-\d+ \|",line)]; counts=collections.Counter(row[1].strip() for row in rows); groups=collections.Counter(row[2].strip() for row in rows); print("Finding counts",dict(counts),"groups",dict(groups)); assert len(rows)==13 and dict(counts)=={"Critical":1,"High":4,"Medium":6,"Low":2}; expected="Counts: Critical=1 High=4 Medium=6 Low=2"; assert expected in (root/"SUMMARY.md").read_text() and expected in findings; missing=[]; refs=[]; [missing.append((p.name,target)) for p in root.glob("*.md") for target in re.findall(r"\]\(([^)]+)\)",p.read_text()) if not target.startswith(("http:","https:","#")) and not (p.parent/target.split("#")[0]).exists()]; print("Missing markdown links",missing); assert not missing; sourcefiles={}; [sourcefiles.setdefault(path,Path(path).read_text().splitlines()) for path,num in re.findall(r"([A-Za-z0-9_./-]+\.(?:ts|mts|mjs|json|md)):(\d+)",findings) if Path(path).exists()]; [(assertion if False else None) for assertion in []]; [(print(path+":"+num+": "+sourcefiles[path][int(num)-1])) for path,num in re.findall(r"([A-Za-z0-9_./-]+\.(?:ts|mts|mjs|json|md)):(\d+)",findings) if path in sourcefiles]; print("COVERAGE"); [(print(name,json.loads((root/"artifacts"/name/"coverage-summary.json").read_text())["total"])) for name in ["coverage-before-valid","coverage-final"]]; print("TRACKED DIFF",subprocess.run(["git","diff","--stat"],text=True,capture_output=True).stdout)'
+Exit: 0
+
+Finding counts {'Critical': 1, 'High': 4, 'Medium': 6, 'Low': 2} groups {'Frontend': 5, 'Backend': 5, 'UX': 3}
+Missing markdown links []
+src/adapters/langchain.ts:58: export class SentinelCallbackHandler {
+src/index.ts:400:       const callArgs: Record<string, unknown> = isPlainObject
+src/index.ts:407:       const approval = await this.createApproval({
+src/index.ts:425:       return await fn(...args);
+tests/qa/backend-core.test.mjs:193: test('BE-001: mutation during approval wait must not change the executed intent', { ...knownDefect('BE-001 mutable approval arguments') }, async () => {
+src/index.ts:193:     const r = await fetch(url, {
+src/index.ts:300:     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
+src/index.ts:320:       if (status === 'approved' || status === 'rejected') return data;
+tests/qa/backend-core.test.mjs:214: test('BE-002: approval received after deadline must not execute the action', { ...knownDefect('BE-002 local deadline is not enforced on terminal response') }, async () => {
+src/index.ts:118: export function ensureJsonSerializable(value: unknown): void {
+src/index.ts:228:     ensureJsonSerializable(opts.arguments);
+src/index.ts:234:       body: JSON.stringify({
+src/index.ts:425:       return await fn(...args);
+tests/qa/backend-core.test.mjs:242: test('BE-003: lossy non-JSON arguments must fail before approval or execution', { ...knownDefect('BE-003 serializer accepts silently altered values') }, async () => {
+README.md:13: > ⚠️ **The JS/TS SDK is pre-release — not yet published on npm.**
+package.json:6:   "main": "./dist/index.js",
+src/index.ts:302:     while (true) {
+src/index.ts:309:         data = await this.request<ApprovalRecord>(
+src/index.ts:313:         if (e instanceof SentinelAPIError && e.statusCode === 404) {
+src/index.ts:324:     }
+tests/qa/backend-core.test.mjs:260: test('BE-004: legacy fallback polling must be paced', { ...knownDefect('BE-004 no delay between 404/pending poll attempts') }, async () => {
+src/adapters/ai-sdk.ts:56: interface AiSdkToolLike {
+src/adapters/openai-agents.ts:59: interface FunctionToolLike {
+src/adapters/mastra.ts:47: interface MastraToolLike {
+src/adapters/ai-sdk.ts:52: export interface AiSdkGateOptions extends OversightOptions {
+src/adapters/openai-agents.ts:55: export interface OpenAiAgentsGateOptions extends OversightOptions {
+src/adapters/mastra.ts:43: export interface MastraGateOptions extends OversightOptions {
+src/adapters/langchain.ts:86:     const approval = await client.createApproval({
+package-lock.json:4460:     "node_modules/npm/node_modules/tar": {
+package-lock.json:4556:     "node_modules/npm/node_modules/undici": {
+package.json:78:   "overrides": {
+README.md:35: const wireTransfer = oversight(
+src/index.ts:389:     const fnName = opts.functionName || fn.name || 'anonymous';
+tests/qa/ux-docs.test.mjs:132: test('UX-001 README quickstart should send a recognizable action name', {
+README.md:91: try {
+tests/qa/ux-docs.test.mjs:139: test('UX-002 README Errors block should propagate transport failures', {
+src/index.ts:205:         const body = (await r.json()) as Record<string, unknown>;
+src/index.ts:210:         const txt = await r.text().catch(() => '');
+tests/qa/backend-core.test.mjs:328: test('BE-005: plain-text HTTP error retains useful response detail', { ...knownDefect('BE-005 response body is consumed before text fallback') }, async () => {
+CONTRIBUTING.md:26: 1. SDK version (`node -e "console.log(require('sentinel-oversight/package.json').version)"`)
+package.json:8:   "exports": {
+tests/qa/ux-docs.test.mjs:164: test('UX-003 documented SDK version command should complete successfully', {
+README.md:122:   idempotencyKey: '[REDACTED: synthetic idempotency example]',
+COVERAGE
+coverage-before-valid {'lines': {'total': 967, 'covered': 648, 'skipped': 0, 'pct': 67.01}, 'statements': {'total': 967, 'covered': 648, 'skipped': 0, 'pct': 67.01}, 'functions': {'total': 37, 'covered': 23, 'skipped': 0, 'pct': 62.16}, 'branches': {'total': 92, 'covered': 65, 'skipped': 0, 'pct': 70.65}, 'branchesTrue': {'total': 0, 'covered': 0, 'skipped': 0, 'pct': 100}}
+coverage-final {'lines': {'total': 967, 'covered': 954, 'skipped': 0, 'pct': 98.65}, 'statements': {'total': 967, 'covered': 954, 'skipped': 0, 'pct': 98.65}, 'functions': {'total': 41, 'covered': 41, 'skipped': 0, 'pct': 100}, 'branches': {'total': 180, 'covered': 155, 'skipped': 0, 'pct': 86.11}, 'branchesTrue': {'total': 0, 'covered': 0, 'skipped': 0, 'pct': 100}}
+TRACKED DIFF  package.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+

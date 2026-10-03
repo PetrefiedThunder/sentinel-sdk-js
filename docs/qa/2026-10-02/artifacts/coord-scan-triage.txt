@@ -1,0 +1,7 @@
+Start: 2026-10-03T01:44:19+00:00
+End: 2026-10-03T01:44:19+00:00
+Command: python3 -
+Exit: 0
+
+README.md:122 field name: idempotencyKey
+Disposition: documentation idempotency example, not an authentication credential. Generic scanner false positive; no secret value retained in scanner report.

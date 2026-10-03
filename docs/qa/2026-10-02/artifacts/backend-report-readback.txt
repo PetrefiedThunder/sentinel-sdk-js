@@ -1,0 +1,34 @@
+Start: 2026-10-03T01:47:06+00:00
+End: 2026-10-03T01:47:06+00:00
+Command: python3 -c 'import pathlib; p=pathlib.Path("docs/qa/2026-10-02/BACKEND-REPORT.md"); text=p.read_text(); text=text.replace("artifacts/backend-core-loopback-pass.txt)","artifacts/backend-core-final-pass.txt)",1); text=text.replace("Mock a 404 for `/wait`, pending for direct GET, and 2 ms response latency; allow a 100 ms local window.","Freeze the clock, mock 404 for `/wait` and pending for direct GET, drain 200 microtasks without yielding to timers, and supply a terminal sixth response for cleanup."); text=text.replace("The final run made 44 requests in approximately 102 ms. Each loop retries both the unsupported wait endpoint and direct GET.","Six requests run before any timer/event-loop turn. An earlier timed exploratory run also made 44 requests in approximately 102 ms; each loop retries both the unsupported wait endpoint and direct GET."); text=text.replace("tests/qa/backend-core.test.mjs:321","tests/qa/backend-core.test.mjs:327"); p.write_text(text); print("Updated deterministic BE-004 reproduction, final artifact and BE-005 line reference."); p=pathlib.Path("tests/qa/backend-core.test.mjs"); print("Test inventory:"); [print(f"{i}: {row}") for i,row in enumerate(p.read_text().splitlines(),1) if row.startswith("test(") or row.startswith("  test(")]; print("Backend docs:"); [print(f"{p}: {p.stat().st_size} bytes") for p in pathlib.Path("docs/qa/2026-10-02").glob("BACKEND-*.md")]'
+Exit: 0
+
+Updated deterministic BE-004 reproduction, final artifact and BE-005 line reference.
+Test inventory:
+40: test('BE control: missing API key fails before network', () => {
+45: test('BE control: approved named and positional arguments execute once and preserve return values', async () => {
+55: test('BE control: rejection blocks the protected action and retains reason/action ID', async () => {
+67: test('BE control: rejection wins a contradictory approved/rejected response', async () => {
+75:   test(`BE error matrix: HTTP ${status} stops execution without an automatic retry`, async () => {
+90: test('BE control: structured validation error survives normalization', async () => {
+95: test('BE control: transport failure stops execution', async () => {
+102: test('BE control: malformed successful JSON stops execution', async () => {
+109: test('BE control: pending decision past deadline throws ApprovalTimeout', async () => {
+116: test('BE control: 404 wait fallback can retrieve a valid approval', async () => {
+123: test('BE control: decision-only response is accepted for backward compatibility', async () => {
+128: test('BE control: separately configured clients and captured wrappers keep their own auth context', async () => {
+142: test('BE control: path and query special characters remain data', async () => {
+154: test('BE property control: seeded JSON values preserve approved and executed intent', async () => {
+164: test('BE control: circular and BigInt arguments fail before request or execution', async () => {
+175: test('BE control: tenant settings and legacy audit list use expected wire shapes', async () => {
+184: test('BE idempotency scope control: replayed approval does not deduplicate wrapped side effects', async () => {
+192: test('BE-001: mutation during approval wait must not change the executed intent', { todo: 'BE-001 mutable approval arguments' }, async () => {
+213: test('BE-002: approval received after deadline must not execute the action', { todo: 'BE-002 local deadline is not enforced on terminal response' }, async () => {
+227: test('BE-002: a stalled request must settle at the approval deadline', { todo: 'BE-002 fetch has no deadline or abort signal' }, async () => {
+241: test('BE-003: lossy non-JSON arguments must fail before approval or execution', { todo: 'BE-003 serializer accepts silently altered values' }, async () => {
+259: test('BE-004: legacy fallback polling must be paced', { todo: 'BE-004 no delay between 404/pending poll attempts' }, async () => {
+275: test('BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions', { timeout: 5000 }, async (t) => {
+327: test('BE-005: plain-text HTTP error retains useful response detail', { todo: 'BE-005 response body is consumed before text fallback' }, async () => {
+Backend docs:
+docs/qa/2026-10-02/BACKEND-LOG.md: 6228 bytes
+docs/qa/2026-10-02/BACKEND-REPORT.md: 11454 bytes

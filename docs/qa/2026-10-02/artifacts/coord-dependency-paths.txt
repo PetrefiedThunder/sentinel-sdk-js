@@ -1,0 +1,34 @@
+Start: 2026-10-03T01:42:59+00:00
+End: 2026-10-03T01:42:59+00:00
+Command: npm ls tar undici micromatch brace-expansion --all
+Exit: 0
+
+sentinel-oversight@0.1.0 /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js
++-- @semantic-release/commit-analyzer@13.0.1
+| `-- micromatch@4.0.8
++-- @semantic-release/git@11.0.1
+| `-- micromatch@4.0.8 deduped
++-- @semantic-release/github@12.0.9
+| `-- undici@6.29.0
++-- @semantic-release/npm@13.1.5
+| +-- @actions/core@3.0.1
+| | `-- @actions/http-client@4.0.1
+| |   `-- undici@6.29.0 deduped
+| `-- npm@11.17.0
+|   +-- libnpmdiff@8.1.10
+|   | `-- tar@7.5.16 deduped
+|   +-- minimatch@10.2.5
+|   | `-- brace-expansion@5.0.6
+|   +-- node-gyp@12.4.0
+|   | +-- tar@7.5.16 deduped
+|   | `-- undici@6.26.0
+|   +-- pacote@21.5.1
+|   | `-- tar@7.5.16 deduped
+|   `-- tar@7.5.16
++-- openapi-typescript@7.13.0
+| `-- @redocly/openapi-core@1.34.20
+|   `-- minimatch@5.1.9
+|     `-- brace-expansion@2.1.7
+`-- semantic-release@25.0.9
+  `-- micromatch@4.0.8 deduped
+

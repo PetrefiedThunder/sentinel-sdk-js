@@ -1,0 +1,156 @@
+Start: 2026-10-03T01:43:17+00:00
+End: 2026-10-03T01:43:17+00:00
+Command: npm pack --ignore-scripts --json --pack-destination /private/tmp
+Exit: 0
+
+[
+  {
+    "id": "sentinel-oversight@0.1.0",
+    "name": "sentinel-oversight",
+    "version": "0.1.0",
+    "size": 20784,
+    "unpackedSize": 76872,
+    "shasum": "c38fcb3f2d1fc4c31a25cf818c8243f38adb332d",
+    "integrity": "sha512-rlZ7jJaRJfeCpBR5GCuSKcrTXpt9RqU7K88IJWLcNt7lz03tgDZuIwSGjPf+/bvXrk0W3zw+zOsVHnN/NwweSQ==",
+    "filename": "sentinel-oversight-0.1.0.tgz",
+    "files": [
+      {
+        "path": "LICENSE",
+        "size": 1072,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 5561,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/ai-sdk.d.ts",
+        "size": 2534,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/ai-sdk.d.ts.map",
+        "size": 715,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/ai-sdk.js",
+        "size": 3872,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/ai-sdk.js.map",
+        "size": 1766,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/langchain.d.ts",
+        "size": 2585,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/langchain.d.ts.map",
+        "size": 867,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/langchain.js",
+        "size": 4070,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/langchain.js.map",
+        "size": 2365,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/mastra.d.ts",
+        "size": 1736,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/mastra.d.ts.map",
+        "size": 596,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/mastra.js",
+        "size": 2870,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/mastra.js.map",
+        "size": 1477,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/openai-agents.d.ts",
+        "size": 2696,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/openai-agents.d.ts.map",
+        "size": 749,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/openai-agents.js",
+        "size": 4749,
+        "mode": 420
+      },
+      {
+        "path": "dist/adapters/openai-agents.js.map",
+        "size": 2204,
+        "mode": 420
+      },
+      {
+        "path": "dist/generated/index.d.ts",
+        "size": 659,
+        "mode": 420
+      },
+      {
+        "path": "dist/generated/index.d.ts.map",
+        "size": 420,
+        "mode": 420
+      },
+      {
+        "path": "dist/generated/index.js",
+        "size": 265,
+        "mode": 420
+      },
+      {
+        "path": "dist/generated/index.js.map",
+        "size": 154,
+        "mode": 420
+      },
+      {
+        "path": "dist/index.d.ts",
+        "size": 6029,
+        "mode": 420
+      },
+      {
+        "path": "dist/index.d.ts.map",
+        "size": 3447,
+        "mode": 420
+      },
+      {
+        "path": "dist/index.js",
+        "size": 12265,
+        "mode": 420
+      },
+      {
+        "path": "dist/index.js.map",
+        "size": 8485,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 2664,
+        "mode": 420
+      }
+    ],
+    "entryCount": 27,
+    "bundled": []
+  }
+]

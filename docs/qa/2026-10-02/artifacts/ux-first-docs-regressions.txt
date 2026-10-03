@@ -1,0 +1,106 @@
+Start: 2026-10-03T01:43:14+00:00
+End: 2026-10-03T01:43:14+00:00
+Command: node --test tests/qa/ux-docs.test.mjs
+Exit: 0
+
+✔ README quickstart waits for a decision before calling the payment stub (26.758ms)
+✔ README quickstart rejects without calling the payment stub (2.289875ms)
+✔ README Errors block reports documented rejected, timed-out and HTTP errors (5.577375ms)
+✔ missing SDK configuration has an actionable local error (0.228917ms)
+✔ explicit action names and synchronous return values remain usable (0.386666ms)
+⚠ UX-001 README quickstart should send a recognizable action name (1.765834ms) # UX-001: inline anonymous callback is sent as function_name anonymous
+⚠ UX-002 README Errors block should propagate transport failures (1.208917ms) # UX-002: the catch example silently swallows errors outside three listed classes
+⚠ UX-002 README Errors block should propagate the approved business operation failure (2.209458ms) # UX-002: a payment error after approval also vanishes in the example catch
+⚠ UX-003 documented SDK version command should complete successfully (27.639417ms) # UX-003: package.json is not an exported package subpath
+ℹ tests 9
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 4
+ℹ duration_ms 215.330667
+
+✖ failing tests:
+
+test at tests/qa/ux-docs.test.mjs:122:1
+⚠ UX-001 README quickstart should send a recognizable action name (1.765834ms) # UX-001: inline anonymous callback is sent as function_name anonymous
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'anonymous'
+  - 'wireTransfer'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:126:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'anonymous',
+    expected: 'wireTransfer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:129:1
+⚠ UX-002 README Errors block should propagate transport failures (1.208917ms) # UX-002: the catch example silently swallows errors outside three listed classes
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:139:3)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:142:1
+⚠ UX-002 README Errors block should propagate the approved business operation failure (2.209458ms) # UX-002: a payment error after approval also vanishes in the example catch
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:151:3)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:154:1
+⚠ UX-003 documented SDK version command should complete successfully (27.639417ms) # UX-003: package.json is not an exported package subpath
+  AssertionError [ERR_ASSERTION]: node:internal/modules/cjs/loader:731
+      throw e;
+      ^
+  
+  Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './package.json' is not defined by "exports" in /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/package.json imported from /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/[eval]
+      at exportsNotFound (node:internal/modules/esm/resolve:315:10)
+      at packageExportsResolve (node:internal/modules/esm/resolve:663:9)
+      at resolveExpansion (node:internal/modules/cjs/loader:724:34)
+      at trySelf (node:internal/modules/cjs/loader:681:10)
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1553:24)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1123:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1147:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1174:12)
+      at Module._load (node:internal/modules/cjs/loader:1346:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:261:19) {
+    code: 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+  }
+  
+  Node.js v26.7.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:162:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

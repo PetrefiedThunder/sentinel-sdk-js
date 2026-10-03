@@ -1,0 +1,302 @@
+Start: 2026-10-03T01:46:27+00:00
+End: 2026-10-03T01:46:27+00:00
+Command: python3 -c 'from pathlib import Path; files=["README.md","CONTRIBUTING.md","docs/qa/2026-10-02/DEPENDENCY-REPORT.md","docs/qa/2026-10-02/UX-REPORT.md","docs/qa/2026-10-02/FRONTEND-REPORT.md"]; [(print("FILE "+f),print("\n".join(f"{i}: {line}" for i,line in enumerate(Path(f).read_text().splitlines(),1)))) for f in files if Path(f).exists()]'
+Exit: 0
+
+FILE README.md
+1: # Sentinel SDK for JavaScript / TypeScript
+2: 
+3: [![npm version](https://img.shields.io/badge/npm-coming%20soon-lightgrey.svg)](https://github.com/PetrefiedThunder/sentinel-sdk-js)
+4: [![Node](https://img.shields.io/badge/node-%E2%89%A518.17-brightgreen.svg)](https://nodejs.org)
+5: [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+6: [![Status](https://img.shields.io/badge/status-public%20beta-blue.svg)](https://pauseapi.app)
+7: 
+8: **Human-in-the-loop approval for AI agents.**
+9: 
+10: One wrapper. Your function pauses execution, a human gets an email with
+11: Approve/Reject buttons, and the function only runs once they click Approve.
+12: 
+13: > ⚠️ **The JS/TS SDK is pre-release — not yet published on npm.**
+14: > Install directly from git until the first npm release:
+15: >
+16: > ```bash
+17: > npm install github:PetrefiedThunder/sentinel-sdk-js
+18: > ```
+19: >
+20: > `npm install sentinel-oversight` (below) will work once the package is
+21: > published.
+22: 
+23: ```bash
+24: # coming soon — not yet on npm
+25: npm install sentinel-oversight
+26: ```
+27: 
+28: ## Quick start
+29: 
+30: ```typescript
+31: import { configure, oversight } from 'sentinel-oversight';
+32: 
+33: configure({ apiKey: process.env.SENTINEL_API_KEY! });
+34: 
+35: const wireTransfer = oversight(
+36:   { riskLevel: 'high', approvers: ['alice@acme.com'] },
+37:   async (amountCents: number, recipient: string) => {
+38:     return stripe.transfers.create({
+39:       amount: amountCents,
+40:       destination: recipient,
+41:     });
+42:   }
+43: );
+44: 
+45: // When the agent calls this:
+46: await wireTransfer(50_000_00, 'acct_acme_corp');
+47: // 1. Sentinel pauses execution.
+48: // 2. alice@acme.com gets an email with Approve / Reject.
+49: // 3. On Approve → stripe.transfers.create runs, return value flows back.
+50: // 4. On Reject  → ApprovalRejected thrown.
+51: // 5. On timeout → ApprovalTimeout thrown.
+52: ```
+53: 
+54: ## What you get
+55: 
+56: - **One wrapper** — `oversight({...}, fn)` returns a new fn with the same signature
+57: - **Magic-link approval** — signed HMAC tokens on Approve / Reject buttons
+58: - **Postgres LISTEN/NOTIFY** — sub-100 ms decision propagation; the wait is real-time
+59: - **Hash-chained audit log** — every approval is immutably recorded
+60: - **Sync + async** — works with both plain functions and Promise-returning ones
+61: - **Zero deps** — uses native `fetch`, no axios / undici tax
+62: 
+63: ## Approvers
+64: 
+65: Each entry in `approvers: [...]` is a string. Format determines the channel.
+66: 
+67: | Format | Channel |
+68: |---|---|
+69: | `alice@acme.com` | Email (default) |
+70: | `mailto:alice@acme.com` | Email (explicit) |
+71: | `sms:+15551234567` | SMS (requires registered consent) |
+72: 
+73: Mix as needed; every approver gets a notification, **first decision wins**.
+74: 
+75: ## Risk levels
+76: 
+77: `riskLevel`: `'low' \| 'medium' \| 'high' \| 'critical'`. Used by the dashboard
+78: for prioritization.
+79: 
+80: ## Errors
+81: 
+82: ```typescript
+83: import {
+84:   SentinelError,
+85:   SentinelConfigError,
+86:   SentinelAPIError,
+87:   ApprovalRejected,
+88:   ApprovalTimeout,
+89: } from 'sentinel-oversight';
+90: 
+91: try {
+92:   await wireTransfer(50_000_00, 'acct_xyz');
+93: } catch (e) {
+94:   if (e instanceof ApprovalRejected) {
+95:     console.log('Rejected:', e.reason);
+96:   } else if (e instanceof ApprovalTimeout) {
+97:     console.log('No decision in time:', e.actionId);
+98:   } else if (e instanceof SentinelAPIError) {
+99:     console.log(`API ${e.statusCode}:`, e.message);
+100:   }
+101: }
+102: ```
+103: 
+104: ## Idempotency
+105: 
+106: Pass `idempotencyKey` to make approval creation safe to retry — the same
+107: (tenant, key) replays the original response without creating duplicate
+108: approvals or firing duplicate notifications. Same key with a different body
+109: returns a 409. A string is used as-is; a function is called once per
+110: invocation.
+111: 
+112: ```typescript
+113: const wireTransfer = oversight(
+114:   { riskLevel: 'high', idempotencyKey: () => crypto.randomUUID() },
+115:   async (amountCents: number, recipient: string) => { /* ... */ }
+116: );
+117: 
+118: // or directly:
+119: await client.createApproval({
+120:   functionName: 'wireTransfer',
+121:   arguments: { amountCents: 50_000_00 },
+122:   idempotencyKey: '[REDACTED: synthetic idempotency example]',
+123: });
+124: ```
+125: 
+126: ## Listing & pagination
+127: 
+128: `listApprovals` returns one page (`{ data, hasMore, nextCursor }`);
+129: `iterApprovals` walks every page for you. Audit events:
+130: `listAuditEventsPage` with the same shape.
+131: 
+132: ```typescript
+133: const page = await client.listApprovals({ status: 'pending', limit: 20 });
+134: // page.data, page.hasMore, page.nextCursor
+135: 
+136: for await (const approval of client.iterApprovals({ status: 'pending' })) {
+137:   console.log(approval.action_id, approval.status);
+138: }
+139: ```
+140: 
+141: ## Tenant settings
+142: 
+143: ```typescript
+144: import { SentinelClient } from 'sentinel-oversight';
+145: 
+146: const client = new SentinelClient({ apiKey: process.env.SENTINEL_API_KEY! });
+147: 
+148: await client.setDefaultApprovers(['ops@acme.com', 'sms:+15551234567']);
+149: // now any oversight() call without `approvers` falls back to these
+150: ```
+151: 
+152: ## Configuration
+153: 
+154: | Option | Default | Description |
+155: |---|---|---|
+156: | `apiKey` | _required_ | Your tenant API key (sk_live_…) |
+157: | `apiUrl` | `https://api.pauseapi.app` | Backend URL |
+158: | `timeoutSeconds` | `300` | Default approval timeout |
+159: 
+160: ## Audit log
+161: 
+162: ```typescript
+163: const events = await client.listAuditEvents('act_abc123');
+164: // each event has prev_hash + event_hash (SHA-256), verifiable chain
+165: ```
+166: 
+167: ## Examples
+168: 
+169: Clone runnable examples:
+170: 
+171: ```bash
+172: git clone https://github.com/PetrefiedThunder/sentinel-examples
+173: ```
+174: 
+175: ## Links
+176: 
+177: - Website: [pauseapi.app](https://pauseapi.app)
+178: - Dashboard: [app.pauseapi.app](https://app.pauseapi.app)
+179: - Python SDK: [sentinel-oversight on PyPI](https://pypi.org/project/sentinel-oversight/)
+180: - API source: [github.com/PetrefiedThunder/sentinel-api](https://github.com/PetrefiedThunder/sentinel-api)
+181: 
+182: ## License
+183: 
+184: MIT — © RegEngine, Inc.
+FILE CONTRIBUTING.md
+1: # Contributing to Sentinel (JavaScript / TypeScript SDK)
+2: 
+3: Thanks for considering a contribution.
+4: 
+5: ## Quick start
+6: 
+7: ```bash
+8: git clone https://github.com/PetrefiedThunder/sentinel-sdk-js
+9: cd sentinel-sdk-js
+10: npm install
+11: npm run build
+12: npm test
+13: ```
+14: 
+15: To run the live smoke test against a real API key:
+16: 
+17: ```bash
+18: SENTINEL_API_KEY=sk_live_... npm run smoke
+19: ```
+20: 
+21: ## Filing a bug
+22: 
+23: Open an issue at https://github.com/PetrefiedThunder/sentinel-sdk-js/issues
+24: and include:
+25: 
+26: 1. SDK version (`node -e "console.log(require('sentinel-oversight/package.json').version)"`)
+27: 2. Node version (`node --version`)
+28: 3. Minimal reproducible example
+29: 4. Full error / stack trace
+30: 
+31: ## Pull requests
+32: 
+33: 1. Open an issue first if it's a behavior change.
+34: 2. Small, focused PRs.
+35: 3. Add a unit test (`tests/*.test.mjs`) and update the live smoke
+36:    (`tests/smoke.mjs`) if the change is end-to-end.
+37: 4. `npm test` and `npm run build` must pass.
+38: 5. Update `CHANGELOG.md` under `## [Unreleased]`.
+39: 
+40: ## Releasing (maintainers only)
+41: 
+42: 1. Bump `version` in `package.json` + `VERSION` in `src/index.ts`.
+43: 2. Move `## [Unreleased]` into a versioned section in `CHANGELOG.md`.
+44: 3. Commit, tag `vX.Y.Z`, push. GitHub Actions publishes to npm via
+45:    Trusted Publishing (OIDC) — no token needed.
+46: 
+47: ## Security
+48: 
+49: Email security@regengine.co — don't file a public issue.
+50: 
+51: ## Code of conduct
+52: 
+53: Be excellent. Harassment / discrimination → removed from the project.
+FILE docs/qa/2026-10-02/DEPENDENCY-REPORT.md
+1: # Dependency and package security evidence
+2: 
+3: Group: Frontend replacement (package consumer/build toolchain).
+4: 
+5: | ID | Severity | Group | Title | Exact repro | Expected vs actual | Evidence | Suggested fix |
+6: | --- | --- | --- | --- | --- | --- | --- | --- |
+7: | FE-900 | Medium | Frontend | Release/development dependency tree retains critical/high upstream advisories | Run `npm ci --ignore-scripts --no-audit --no-fund`; run `npm audit --json`; compare `npm audit --omit=dev --json`; inspect `npm ls tar undici --all`. | Expected: release tooling has no unresolved high-impact advisories. Actual: audit reports 34 affected package entries (1 critical, 33 high); runtime-only audit reports 0. Locked npm bundles tar 7.5.16 and undici 6.26.0 despite the top-level undici override. | `package-lock.json:4460`, `package-lock.json:4556`, `package.json:78`; [audit](artifacts/coord-audit.txt), [runtime audit](artifacts/coord-audit-runtime.txt), [dependency paths](artifacts/coord-dependency-paths.txt). | Upgrade/re-resolve compatible semantic-release/npm tooling and its bundled dependencies, verify the actual installed tree and rerun audit. Do not blindly force npm audit fixes across release-tool major versions. |
+8: 
+9: The repository finding is Medium because the observed exposure is development/release tooling, not shipped SDK runtime dependencies; no vulnerability exploit or compromise was tested or observed. Upstream severity is recorded without treating every transitive effect as a distinct product finding. Representative upstream advisory links appear in the full registry report, including tar decompression/resource exhaustion. Registry results are time-specific to this run. Audit evidence is a public metadata lookup, not a production request.
+10: 
+11: The built npm artifact has 27 entries and contains only dist, README, LICENSE and package.json. No test artifacts, credential/environment files or node_modules are packaged ([pack report](artifacts/coord-pack.txt)). Consumer installation from unbuilt source is a separate frontend finding; a successful pack of already-built output does not resolve it.
+12: 
+13: Secret scan: one generic-rule alert at README.md:122 was triaged as an illustrative idempotency value. Report payload is redacted. No confirmed secret exposure in the 31-file tracked source/doc/manifest/workflow snapshot. Git history and credential/environment files were deliberately not read. No scanner rules or baselines were modified.
+FILE docs/qa/2026-10-02/UX-REPORT.md
+1: # UX QA report — developer experience
+2: 
+3: PR: opened by orchestrator
+4: CI status: pending at time of writing
+5: 
+6: This repository has no application UI. The UX pass therefore reviewed the experience of integrating the SDK: installation guidance, approval feedback, public API usage, unexpected failures, and bug reporting. Browser, axe/WCAG, keyboard, screen-reader, mobile/responsive, and screenshot checks are not applicable. Executable transcripts are the evidence artifact.
+7: 
+8: ## Result
+9: 
+10: Three findings: **Medium=2, Low=1**. No product changes. The final isolated command `node --test tests/qa/ux-docs.test.mjs` completed with **10 tests: 6 passing, 0 failures, 4 TODO expected failures**. Four expected-failure assertions cover three findings because UX-002 affects both transport errors and errors from the approved business operation.
+11: 
+12: Evidence: [final test transcript](artifacts/ux-final-docs-regressions.txt), [initial test transcript](artifacts/ux-first-docs-regressions.txt), [source inspection](artifacts/ux-docs-and-client.txt), [README line references](artifacts/ux-readme-lines-and-existing-tests.txt), and [separate pass log](UX-LOG.md).
+13: 
+14: ## Findings
+15: 
+16: | ID | Severity | Group | Title | Exact reproduction | Expected vs actual | Evidence | Suggested fix |
+17: | --- | --- | --- | --- | --- | --- | --- | --- |
+18: | UX-001 | Medium | UX / developer experience | README quickstart labels its payment action `anonymous` | After a local build, run `node --test --test-name-pattern='UX-001' tests/qa/ux-docs.test.mjs`. The test extracts the actual README quickstart, substitutes synthetic configuration and a payment stub, and captures the approval request with a fetch stub. | Expected: an approver can identify the example operation as `wireTransfer`. Actual: `function_name` is `anonymous`, because an inline arrow passed as an argument has no inferred name. This removes the operation label from the approval request; it does not itself bypass approval. | `README.md:35-42`; fallback in `src/index.ts:389`; test `UX-001 README quickstart should send a recognizable action name` at `tests/qa/ux-docs.test.mjs:131`; transcript shows `anonymous` vs `wireTransfer`. | Add `functionName: 'wireTransfer'` to the example options, or use a named function expression. Document the same requirement for anonymous callbacks/minified code. The passing explicit-action-name test verifies the existing option works. |
+19: | UX-002 | Medium | UX / developer experience | README error handling silently discards network and business-operation failures | Run `node --test --test-name-pattern='UX-002' tests/qa/ux-docs.test.mjs`. One probe makes fetch throw a synthetic `TypeError`; the other returns approval and then makes the wrapped payment operation throw a synthetic `Error`. Both execute the actual README Errors block. | Expected: an error not intentionally handled by the three documented branches propagates to the caller or is explicitly reported. Actual: the catch falls through without logging or rethrowing; its surrounding async operation resolves successfully despite the failed operation. | `README.md:91-101`; test cases at `tests/qa/ux-docs.test.mjs:138` and `:151`; transcript shows `Missing expected rejection` for both. | End the example with an `else { throw e; }` fallback. Explain that underlying tool/payment failures and native transport errors also propagate through a wrapped call. |
+20: | UX-003 | Low | UX / developer experience | Contributor version-reporting command fails | Run the documented command from the checkout or an installed consumer: `node -e "console.log(require('sentinel-oversight/package.json').version)"`. Offline reproduction is retained by `node --test --test-name-pattern='UX-003' tests/qa/ux-docs.test.mjs`. | Expected: prints the SDK version requested for a bug report. Actual: exits 1 with `ERR_PACKAGE_PATH_NOT_EXPORTED`, because `./package.json` is absent from package exports. | `CONTRIBUTING.md:26`; `package.json:8-29`; test at `tests/qa/ux-docs.test.mjs:163`; transcript includes the exact exception. | Document the already-supported public export: `node --input-type=module -e "import { VERSION } from 'sentinel-oversight'; console.log(VERSION)"`. A passing subprocess test confirms this workaround. |
+21: 
+22: ## Adapted Nielsen heuristics
+23: 
+24: | Heuristic | Assessment and evidence |
+25: | --- | --- |
+26: | Visibility of system status | Approval wait is a pending Promise. The quickstart test holds the decision response and verifies that the payment stub has not run, then releases approval. No live email/dashboard status was asserted. |
+27: | Match between system and user language | UX-001: the quickstart's recognizable business operation becomes `anonymous` on the wire. Risk-level terminology and rejection reasons otherwise carry through. |
+28: | User control and freedom | Rejection prevents the callback; documented timeout handling is exercised with the actual error class. Cancellation, retry races, and timeout enforcement belong to the backend pass. |
+29: | Consistency and standards | Examples use `configure`/`oversight` consistently; page properties use the documented camelCase mapping. Sync functions are accepted but wrappers return Promises, verified by a passing case. |
+30: | Error prevention | Missing API configuration produces an actionable local `SentinelConfigError`. No API key is obtained or required for this pass. |
+31: | Recognition rather than recall | UX-001 removes the visible business operation label. The existing `functionName` option provides an immediate workaround without a product change. |
+32: | Flexibility and efficiency | Both the global convenience API and explicit client wrapper are exercised. Parameter forwarding and the returned value are verified without framework services. |
+33: | Minimalist presentation | README is short enough to navigate; no cosmetic defect was raised. Its payment example assumes an externally initialized `stripe` client, so the execution harness supplies a synthetic equivalent. |
+34: | Error diagnosis and recovery | UX-002 loses unexpected failures; UX-003 blocks the prescribed bug-report command. Documented rejection, timeout, and HTTP error branches produce messages in the passing tests. Loss of non-JSON HTTP detail is owned by the backend pass, not duplicated here. |
+35: | Help and documentation | README and contributor instructions were inspected against implementation. Git installation/package contents are owned by frontend QA. External links, publication status, server notification behavior, and server audit guarantees were not contacted or verified. |
+36: 
+37: ## Method and limits
+38: 
+39: The quickstart and Errors examples are read from README at test runtime and transpiled using the repository's existing TypeScript dependency. Imports are supplied from the built local SDK. The harness replaces the environment object with a synthetic value, adds a loopback API base URL, intercepts every fetch, and replaces the payment client with a local stub. No HTTP request leaves the process. The contributor command runs in a subprocess against the local package self-reference.
+40: 
+41: Approval success and rejection exercise the full local wrapper. Timeout messaging uses an injected `ApprovalTimeout` to test the documented catch branch; it is **not** proof of timeout enforcement. Core timeout behavior, transport coverage, contract/security behavior and browser/framework compatibility are reported by their respective passes. Coverage totals are consolidated in COVERAGE.md; this pass does not claim independent coverage numbers.
+42: 
+43: The exploratory charter had a 20-minute maximum and ended early after the focused walkthrough and reproducible findings were complete. Actual UTC bounds and all commands are in UX-LOG.md. A minor demo stdout timing concern was considered and excluded from findings to prioritize the more consequential, executable defects above.

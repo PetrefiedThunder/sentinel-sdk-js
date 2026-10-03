@@ -1,0 +1,463 @@
+Start: 2026-10-03T01:48:35+00:00
+End: 2026-10-03T01:48:35+00:00
+Command: python3 -c 'from pathlib import Path; files=["docs/qa/2026-10-02/FRONTEND-REPORT.md","docs/qa/2026-10-02/BACKEND-REPORT.md"];[(print("FILE "+f),print("\n".join(f"{i}: {line}" for i,line in enumerate(Path(f).read_text().splitlines(),1)))) for f in files];[(print("FILE "+str(p)),print(p.read_text()[-7500:])) for p in Path("docs/qa/2026-10-02/artifacts").glob("coord-final-node*.txt")]'
+Exit: 0
+
+FILE docs/qa/2026-10-02/FRONTEND-REPORT.md
+1: # Frontend replacement pass — package and framework consumers
+2: 
+3: PR: opened by orchestrator
+4: CI status: pending at time of writing
+5: 
+6: This SDK has no UI, dev server or browser-delivered product. Package installation, public TypeScript declarations, framework tool protocols and execution safety replace frontend/browser QA. Browser rendering, Chromium/Firefox/WebKit, Lighthouse, axe and screenshots are not applicable. All execution used synthetic arguments, client doubles and local tool counters; no model/provider/API calls were made.
+7: 
+8: ## Results
+9: 
+10: Four findings in this pass: **Critical=1, High=1, Medium=2, Low=0**. The coordinator separately records development-dependency audit results; they are not included in these four findings.
+11: 
+12: - `frontend-adapters.test.mjs`: 30 tests, 21 pass, 9 expected failures/TODO, exit 0. It covers all four adapters, success, rejection, timeout, transport failure, argument/option forwarding, tool naming, LangChain allow/deny lists, Mastra binding and strict consumers.
+13: - `frontend-langchain.integration.test.mjs` against real `@langchain/core@1.2.14`: 8 tests, 3 pass, 5 expected failures/TODO, exit 0. Without the optional framework package the eight tests explicitly skip; the committed artifact proves the real integration was run separately.
+14: - Real `ai@7.0.127` and `@openai/agents@0.18.0` factories: both JS wrappers execute once on approval and execute zero times on rejection. Real TypeScript tool types fail compilation (FE-002), while the strict consumer using compatible broad callback parameters compiles.
+15: - A clean source package contains only three files and fails to import. A local Git dependency installation reproduces the same failure (FE-004), so this is not merely an inference from the scripts.
+16: - Build, project typecheck, built-package verification, minimum supported Node and dependency audit are coordinated centrally and cited in the consolidated report. Core safety issues shared by adapters are recorded in Backend findings rather than counted twice.
+17: 
+18: ## Findings
+19: 
+20: | ID | Severity | Group | Title | Exact reproduction | Expected vs actual | Evidence | Suggested fix |
+21: | --- | --- | --- | --- | --- | --- | --- | --- |
+22: | FE-001 | Critical | Frontend / framework integration | LangChain executes tools without consulting approval; enabling callbacks alone still ignores denial | After build, run `env SENTINEL_QA_LANGCHAIN_ROOT=/private/tmp/sentinel-qa-tools/node_modules/@langchain/core node --test tests/qa/frontend-langchain.integration.test.mjs` with the pinned framework installed at that explicit path. The test supplies `new SentinelCallbackHandler({client})` to a real `DynamicTool.invoke(...,{callbacks:[handler]})` and counts approvals/executions. | Expected: one approval, rejection/timeout block tool execution. Actual: `ignoreAgent=true` makes LangChain skip `handleToolStart`; tool executes with **zero approval calls**. A test-only override of `ignoreAgent=false` reaches approval, but rejection/timeout are swallowed because `raiseError` is absent. Test-only overrides of both flags block execution and pass all controls. | `src/adapters/langchain.ts:58-65,99-105`; `tests/qa/frontend-langchain.integration.test.mjs`; [real integration output](artifacts/frontend-langchain-integration.txt); [framework callback implementation](artifacts/frontend-langchain-manager-read.txt) (installed manager lines 399-410). | Set `ignoreAgent=false` and `raiseError=true`, retain awaiting behavior, and make real framework approval/rejection/timeout tests a supported-version CI check. No product fix was applied. |
+23: | FE-002 | Medium | Frontend / TypeScript consumer | Adapter declarations reject ordinary typed framework tools | Run `node node_modules/typescript/bin/tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext tests/qa/frontend-consumer.mts`; compare the same command with `frontend-consumer-control.mts`. Actual-framework fixture `frontend-framework-types.mts` was copied into the isolated temp consumer and compiled with the same options. | Expected: typed `execute({amount}: {amount:number})` and `invoke(context,input:string)` are accepted and their signatures retained. Actual: all three structural wrapper examples fail TS2322 because `unknown[]` requires callbacks to accept every argument type. The broad-parameter control compiles. Real Agents `FunctionTool` fails for the same reason; current AI SDK also fails because its description union is wider than `string`. | `src/adapters/ai-sdk.ts:56-62`; `src/adapters/openai-agents.ts:59-66`; `src/adapters/mastra.ts:47-54`; [structural compiler failures](artifacts/frontend-consumer-typed.txt); [control](artifacts/frontend-consumer-control.txt); [real framework types](artifacts/frontend-actual-framework-types.txt). | Constrain callable members in a way that accepts concrete argument types while preserving the incoming tool type. Avoid unrelated narrow fields such as `description` when they are not required for wrapping. Add strict consumer fixtures for each supported peer version. |
+24: | FE-003 | Medium | Frontend / framework integration | All four adapters silently discard `idempotencyKey` | Run `node --test tests/qa/frontend-adapters.test.mjs`. Each `FE-003` case supplies a fixed key or generator to an adapter and captures its `client.createApproval()` options. | Expected: fixed key forwarded; generator called once per invocation and its result forwarded. Actual: all four adapters omit `idempotencyKey`, including generator callbacks, despite options extending `OversightOptions`. Retries can create duplicate approval requests and notifications. The check does not claim idempotency guarantees one execution of the underlying tool. | `src/adapters/ai-sdk.ts:52,88-94`; `src/adapters/openai-agents.ts:55,89-95`; `src/adapters/mastra.ts:43,79-85`; `src/adapters/langchain.ts:86-92`; [eight expected failures](artifacts/frontend-adapter-suite.txt). | Resolve the key once for each adapter invocation and forward it to `createApproval`, matching `SentinelClient.wrap`. Keep fixed/generator contract tests for all adapters. |
+25: | FE-004 | High | Frontend / installation | The documented Git install yields a package with no runtime entry points | Make a local shallow clone of commit `717392b` using `git clone --depth 1 --single-branch --branch qa/2026-10-02-sweep file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js /private/tmp/sentinel-qa-local-shallow-source`; run `npm install --prefix /private/tmp/sentinel-qa-git-consumer --no-audit --no-fund git+file:///private/tmp/sentinel-qa-local-shallow-source#717392b`; import `SentinelClient` from `sentinel-oversight` in an `.mjs` file in that consumer directory. | Expected: the README installation method produces importable SDK exports. Actual: install succeeds but the import throws `ERR_MODULE_NOT_FOUND` for `dist/index.js`. `dist/` is ignored and only `prepublishOnly` builds; Git installation does not trigger that hook. Independent clean-source `npm pack` contains only LICENSE, README and package.json. | `README.md:13-21`; `package.json:6-31,35-42`; `.gitignore:2`; [clean pack contents](artifacts/frontend-clean-source-pack.txt); [local Git install](artifacts/frontend-shallow-git-consumer.txt); [package-name import failure](artifacts/frontend-git-consumer-import.txt). | Add a Git-install-compatible build lifecycle such as `prepare`, validate clean Git installation, or document a tested built package installation path. Do not rely solely on `prepublishOnly`. |
+26: 
+27: ## Evidence and execution notes
+28: 
+29: All shell commands, exits and UTC times are retained in [FRONTEND-LOG.md](FRONTEND-LOG.md) and `artifacts/frontend-commands.jsonl`. New defect tests use TODO finding IDs, leaving the product unchanged and the test exit code green. The bare compiler/import reproductions deliberately returned nonzero and remain visible in the log.
+30: 
+31: The first direct local Git install encountered a partial-clone history limitation: npm's mirror clone could not obtain an older promisor object. That attempt is [recorded](artifacts/frontend-local-git-consumer.txt), not treated as a product failure. A shallow clone of the available current tree then succeeded and enabled the exact installation reproduction. Only local `file://` Git sources were supplied; the failed mirror clone reported lazy fetching disabled, but implicit promisor-fetch network activity was not independently traced.
+32: 
+33: The npm tarball install used `--ignore-scripts` only after the clean-source pack already established the missing runtime files; the decisive local Git installation did **not** disable lifecycle scripts.
+34: 
+35: The retained optional LangChain integration accepts a package directory via `SENTINEL_QA_LANGCHAIN_ROOT`; it contains no hardcoded host path. This is a non-secret test path. `run.py` clears service environment variables, then the logged `env ...` command adds only this explicit path. All framework packages came from the public package registry, with versions in [the version artifact](artifacts/frontend-actual-framework-versions.txt).
+36: 
+37: ## Limits
+38: 
+39: No complete LLM agent/model round trip or live Sentinel delivery channel was exercised. LangChain 1.2.14, AI SDK 7.0.127 and OpenAI Agents 0.18.0 were the real framework versions tested. Older peer versions and a real Mastra package remain unverified; Mastra coverage is structural. This pass establishes local package/tool behavior, not server permissions, service availability, published npm availability or deployment status. No browser assets exist to screenshot.
+FILE docs/qa/2026-10-02/BACKEND-REPORT.md
+1: # Backend QA — SDK core transport and approval safety
+2: 
+3: PR: opened by orchestrator
+4: CI status: pending at time of writing
+5: 
+6: The SDK core has three High, one Medium and one Low finding. No product code changed. Thirty added core tests finish with **24 pass, 0 fail, 6 TODO**; all six TODOs actually fail their intended safety assertion and correspond to five findings. The separate loopback test passes using an ephemeral `127.0.0.1` HTTP server and synthetic authorization values. No production service, real credential, external database or billing system was contacted.
+7: 
+8: ## Findings
+9: 
+10: The repository must first be built with `npm run build`. Each reproduction below runs from the repository root; TODO tests intentionally exit successfully while preserving assertion evidence. The complete verification command is `node --test tests/qa/backend-core.test.mjs`. See [final pass output](artifacts/backend-core-final-pass.txt) and [source/test line inventory](artifacts/backend-final-source-lines.txt).
+11: 
+12: | ID | Severity | Group | Title | Exact reproduction | Expected | Actual | Evidence | Suggested fix |
+13: | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+14: | BE-001 | High | Backend | Caller mutation changes the action after approval creation | Run `node --test --test-name-pattern='BE-001:' tests/qa/backend-core.test.mjs`. The test starts a wrapped call with nested transfer amount `1`/recipient `qa-reviewed`, blocks the decision response, changes that same object's amount to `999`/recipient `qa-changed`, then returns approved. | Execute only the reviewed payload, or reject if the payload changed. | Approval creation sends the first values; the protected function receives the changed values. | `src/index.ts:400`, `src/index.ts:407`, `src/index.ts:425`; test `BE-001: mutation during approval wait must not change the executed intent` at `tests/qa/backend-core.test.mjs:192`; assertion diff in final output. | Capture a supported immutable argument snapshot before sending approval, and use that exact snapshot for execution; alternatively reject changed arguments before any side effect. Define compatibility for non-JSON objects explicitly. |
+15: | BE-002 | High | Backend | Approval deadline neither bounds network wait nor blocks late execution | Run `node --test --test-name-pattern='BE-002:' tests/qa/backend-core.test.mjs`. One test advances the clock two seconds during a one-second decision wait and returns approved. The second leaves mocked fetch unresolved, waits 80 ms for a 10 ms local timeout, then releases the mock for cleanup. | Timeout with `ApprovalTimeout`; do not execute after the allowed local window. | The late response executes once. The stalled request remains pending past its deadline. | `src/index.ts:193`, `src/index.ts:300`, `src/index.ts:320`; tests at `tests/qa/backend-core.test.mjs:213` and `:227`; final output shows `1 !== 0` and `still-pending` instead of `timeout`. | Enforce a single deadline across creation/polling, pass an abort signal to each fetch, and check expiry before accepting a terminal response or executing the function. Avoid relying solely on the server's wait query. |
+16: | BE-003 | High | Backend | Lossy JSON conversion permits execution with unreviewed arguments | Run `node --test --test-name-pattern='BE-003:' tests/qa/backend-core.test.mjs`. Submit objects containing NaN, Infinity, undefined, a Set, a Map, or a function and return approved. | Reject unsupported values before network I/O/execution, or execute the exact supported JSON representation submitted for review. | All six inputs execute. NaN/Infinity become null, undefined/functions disappear, and Set/Map become empty objects in the reviewed JSON. | `src/index.ts:118`, `src/index.ts:228`, `src/index.ts:234`, `src/index.ts:425`; test at `tests/qa/backend-core.test.mjs:241`; six accepted cases in final output. | Validate plain JSON values recursively (finite numbers, supported primitives, arrays and plain objects), reject unsupported/lossy values, and align serialization with the immutable snapshot used for execution. |
+17: | BE-004 | Medium | Backend | Legacy-server fallback polls continuously without pacing | Run `node --test --test-name-pattern='BE-004:' tests/qa/backend-core.test.mjs`. Freeze the clock, mock 404 for `/wait` and pending for direct GET, drain 200 microtasks without yielding to timers, and supply a terminal sixth response for cleanup. | Bounded, paced fallback requests; no repeated probe of a known unsupported wait route within the same wait. | Six requests run before any timer/event-loop turn. An earlier timed exploratory run also made 44 requests in approximately 102 ms; each loop retries both the unsupported wait endpoint and direct GET. | `src/index.ts:302`, `src/index.ts:309`, `src/index.ts:313`, `src/index.ts:324`; test at `tests/qa/backend-core.test.mjs:259`; final output. | Remember fallback mode for that wait call and add a deadline-aware bounded polling interval/backoff between pending responses. |
+18: | BE-005 | Low | Backend | Plain-text HTTP errors lose their diagnostic body | Run `node --test --test-name-pattern='BE-005:' tests/qa/backend-core.test.mjs`. Return a real `Response` with status 502 and text `Synthetic gateway unavailable`, then call `getTenant`. | A `SentinelAPIError` containing status 502 and useful bounded response detail. | Error message is only `[502] ` because failed JSON parsing already consumed the body. | `src/index.ts:205`, `src/index.ts:210`; test at `tests/qa/backend-core.test.mjs:327`; final output. | Read response text once and parse JSON from that text when appropriate, retaining a bounded text fallback. |
+19: 
+20: ## Auth, permissions and concurrency matrix
+21: 
+22: | Case | Result | Scope of proof |
+23: | --- | --- | --- |
+24: | Empty API key | Constructor rejects; zero requests | Client configuration only |
+25: | Synthetic 401/403 | `SentinelAPIError`; zero protected executions and no retries | Mocked transport; real 403 additionally exercised on loopback |
+26: | Synthetic 409/422/429/500/503 | Error is surfaced; protected action does not run | No automatic replay of non-idempotent work |
+27: | Two concurrent clients | Each request retains its own synthetic Authorization header | Mocked clients plus allowed/denied clients on loopback |
+28: | Global reconfiguration after wrapper creation | Previously created wrapper retains original client | Prevents accidental rebinding to the latest global client |
+29: | Explicit rejection | Blocks execution with preserved action ID/reason | Includes empty reason fallback and contradictory approved/rejected response where rejection wins |
+30: | Pending past deadline | Correctly throws `ApprovalTimeout` when a pending response returns | Does not resolve the late/stalled-response defects in BE-002 |
+31: | Same idempotency key, concurrent wrapped calls | Both functions execute; requests carry creation idempotency semantics | README promises deduplication of approval creation, not exactly-once side effects. No extra finding counted; applications must own side-effect idempotency. |
+32: | Cross-tenant server authorization, approver identity and token replay | Not tested | Requires server code or an authorized test service; SDK header tests cannot establish server enforcement |
+33: 
+34: ## Contract and input testing
+35: 
+36: - The real HTTP test validates POST `/v1/approvals`, its object arguments, function/risk/approver fields, integer timeout coercion, auth/content-type/user-agent/idempotency headers, and subsequent GET `/v1/approvals/{action_id}/wait`. These match the checked-in request contract at `src/generated/api.d.ts:504` and wait route at `:925`.
+37: - The checked-in wait response is typed `unknown` at `src/generated/api.d.ts:947`. This pass does not claim JSON-schema response validation or freshness against a live OpenAPI document. The task forbids fetching production schemas.
+38: - Sixty-four deterministic seeded plain-JSON cases (seed `0x53454e54`) preserve reviewed/executed argument equality. BigInt and circular objects fail before I/O. Special-character path/query inputs remain encoded data in the tested classes.
+39: - Existing timeout tests cover normal rounding boundaries. This pass concentrates on deadline enforcement, unsupported/lossy argument classes, malformed JSON, transport errors, structured error bodies, rejection and concurrent configuration.
+40: - The 404 fallback has a passing terminal-response control, separating its working compatibility path from the resource-consumption defect.
+41: 
+42: ## OWASP API risk review at the SDK boundary
+43: 
+44: | Risk area | Review result |
+45: | --- | --- |
+46: | API1: Object-level authorization | Action IDs are encoded; authorization is server-owned and unverified. No claim of server tenant isolation. |
+47: | API2: Authentication | Empty key rejected; per-client headers and reconfiguration isolation verified with synthetic credentials. No token issuance, rotation or real-key validation performed. |
+48: | API3: Property-level authorization | Approval response schema is not runtime-validated; permissions and allowed response fields are server-owned. Lossy approval intent is covered by BE-003. |
+49: | API4: Resource consumption | Confirmed unbounded network wait and unpaced fallback (BE-002, BE-004). No load test or production traffic generated. |
+50: | API5: Function-level authorization | SDK always sends its configured bearer credential; synthetic denial fails closed. Real role/permission enforcement remains untested. |
+51: | API6: Sensitive business flows | Approval/execution argument consistency fails under mutation and lossy serialization (BE-001, BE-003). Wrapped side effects require their own idempotency. |
+52: | API7: Server-side request forgery | Base URL is explicit caller configuration; no server is implemented here. No arbitrary external URL probes or SSRF testing performed. |
+53: | API8: Security misconfiguration | Default API URL is HTTPS by source inspection; only explicitly configured loopback HTTP used in tests. Deployment, credential stores and production configuration are outside scope. |
+54: | API9: Inventory management | Core approval/tenant/audit methods mapped against checked-in paths; generated response contracts have limited detail. Live schema drift unverified. |
+55: | API10: Unsafe consumption | Malformed JSON and non-success status fail closed; plain-text error context is lost (BE-005). Runtime response shape/identity validation and malicious-server behavior are not exhaustively tested. |
+56: 
+57: ## Coverage, constraints and follow-up
+58: 
+59: The coordinator owns baseline and final all-source coverage in [COVERAGE.md](COVERAGE.md). This pass adds coverage for constructors, rejection/timeout failures, transport exceptions, JSON/text error paths, fallback polling, tenant methods, argument mutation and client context. Its six TODOs increase executed coverage but are unresolved defects, not passing acceptance tests.
+60: 
+61: Remaining limits: no production API or notification channel, tenant/approver authorization backend, durable audit hash verification, true cross-process side-effect deduplication, workload-scale concurrency, browser application, or full framework runtime. Dependency vulnerability auditing and package/types testing belong to the Frontend substitute pass. No UI exists; screenshots and WCAG checks are not applicable to this pass.
+62: 
+63: Recommended order: BE-001 and BE-003 together (establish exact approved intent), BE-002 (enforce deadlines), BE-004 (pace fallback), then BE-005 (restore diagnostics). Re-run the TODO assertions as normal tests when fixes are made.
+FILE docs/qa/2026-10-02/artifacts/coord-final-node24.txt
+'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:53:1
+⚠ FE-001 real LangChain tool requests approval before executing (4.085084ms) # FE-001: ignoreAgent=true skips handleToolStart completely
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:57:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:64:3
+⚠ FE-001 real LangChain rejection blocks execution (0.347917ms) # FE-001: callback is skipped; absent raiseError also swallows errors
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalRejected).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:66:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:70:3
+⚠ FE-001 enabling callback alone still swallows rejection (0.637458ms) # FE-001: raiseError must also be true
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalRejected).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:72:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:64:3
+⚠ FE-001 real LangChain timeout blocks execution (0.195167ms) # FE-001: callback is skipped; absent raiseError also swallows errors
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalTimeout).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:66:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:70:3
+⚠ FE-001 enabling callback alone still swallows timeout (0.211209ms) # FE-001: raiseError must also be true
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalTimeout).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:72:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:131:1
+⚠ UX-001 README quickstart should send a recognizable action name (3.976583ms) # UX-001: inline anonymous callback is sent as function_name anonymous
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'anonymous'
+  - 'wireTransfer'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:135:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'anonymous',
+    expected: 'wireTransfer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:138:1
+⚠ UX-002 README Errors block should propagate transport failures (4.14425ms) # UX-002: the catch example silently swallows errors outside three listed classes
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:148:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:151:1
+⚠ UX-002 README Errors block should propagate the approved business operation failure (4.209833ms) # UX-002: a payment error after approval also vanishes in the example catch
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:160:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:163:1
+⚠ UX-003 documented SDK version command should complete successfully (28.663291ms) # UX-003: package.json is not an exported package subpath
+  AssertionError [ERR_ASSERTION]: node:internal/modules/cjs/loader:726
+      throw e;
+      ^
+  
+  Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './package.json' is not defined by "exports" in /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/package.json imported from /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/[eval]
+      at exportsNotFound (node:internal/modules/esm/resolve:315:10)
+      at packageExportsResolve (node:internal/modules/esm/resolve:663:9)
+      at resolveExpansion (node:internal/modules/cjs/loader:719:34)
+      at trySelf (node:internal/modules/cjs/loader:676:10)
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1548:24)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1142:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+      at Module._load (node:internal/modules/cjs/loader:1341:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:261:19) {
+    code: 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+  }
+  
+  Node.js v24.21.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:171:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+FILE docs/qa/2026-10-02/artifacts/coord-final-node18.txt
+ is not installed; see FRONTEND-REPORT.md
+  ---
+  duration_ms: 0.021916
+  ...
+# Subtest: README quickstart waits for a decision before calling the payment stub
+ok 89 - README quickstart waits for a decision before calling the payment stub
+  ---
+  duration_ms: 30.382709
+  ...
+# Subtest: README quickstart rejects without calling the payment stub
+ok 90 - README quickstart rejects without calling the payment stub
+  ---
+  duration_ms: 3.782666
+  ...
+# Subtest: README Errors block reports documented rejected, timed-out and HTTP errors
+ok 91 - README Errors block reports documented rejected, timed-out and HTTP errors
+  ---
+  duration_ms: 9.556583
+  ...
+# Subtest: missing SDK configuration has an actionable local error
+ok 92 - missing SDK configuration has an actionable local error
+  ---
+  duration_ms: 0.289625
+  ...
+# Subtest: explicit action names and synchronous return values remain usable
+ok 93 - explicit action names and synchronous return values remain usable
+  ---
+  duration_ms: 0.567958
+  ...
+# Subtest: public VERSION export supplies the contributor version-report workaround
+ok 94 - public VERSION export supplies the contributor version-report workaround
+  ---
+  duration_ms: 33.640042
+  ...
+# Subtest: UX-001 README quickstart should send a recognizable action name
+not ok 95 - UX-001 README quickstart should send a recognizable action name # TODO UX-001: inline anonymous callback is sent as function_name anonymous
+  ---
+  duration_ms: 3.604083
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'anonymous'
+    - 'wireTransfer'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'wireTransfer'
+  actual: 'anonymous'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:135:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: UX-002 README Errors block should propagate transport failures
+not ok 96 - UX-002 README Errors block should propagate transport failures # TODO UX-002: the catch example silently swallows errors outside three listed classes
+  ---
+  duration_ms: 2.93175
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:148:3)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: UX-002 README Errors block should propagate the approved business operation failure
+not ok 97 - UX-002 README Errors block should propagate the approved business operation failure # TODO UX-002: a payment error after approval also vanishes in the example catch
+  ---
+  duration_ms: 2.684292
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:160:3)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: UX-003 documented SDK version command should complete successfully
+not ok 98 - UX-003 documented SDK version command should complete successfully # TODO UX-003: package.json is not an exported package subpath
+  ---
+  duration_ms: 30.24825
+  failureType: 'testCodeFailure'
+  error: |-
+    node:internal/modules/cjs/loader:549
+        throw e;
+        ^
+    
+    Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './package.json' is not defined by "exports" in /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/package.json imported from /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/[eval]
+        at new NodeError (node:internal/errors:405:5)
+        at exportsNotFound (node:internal/modules/esm/resolve:359:10)
+        at packageExportsResolve (node:internal/modules/esm/resolve:695:9)
+        at trySelf (node:internal/modules/cjs/loader:543:34)
+        at Module._resolveFilename (node:internal/modules/cjs/loader:1054:24)
+        at Module._load (node:internal/modules/cjs/loader:922:27)
+        at Module.require (node:internal/modules/cjs/loader:1143:19)
+        at require (node:internal/modules/cjs/helpers:121:18)
+        at [eval]:1:13
+        at Script.runInThisContext (node:vm:123:12) {
+      code: 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+    }
+    
+    Node.js v18.17.1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    new NodeError (node:internal/errors:405:5)
+    exportsNotFound (node:internal/modules/esm/resolve:359:10)
+    packageExportsResolve (node:internal/modules/esm/resolve:695:9)
+    trySelf (node:internal/modules/cjs/loader:543:34)
+    Module._resolveFilename (node:internal/modules/cjs/loader:1054:24)
+    Module._load (node:internal/modules/cjs/loader:922:27)
+    Module.require (node:internal/modules/cjs/loader:1143:19)
+    require (node:internal/modules/cjs/helpers:121:18)
+    [eval]:1:13
+    Script.runInThisContext (node:vm:123:12) {
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:171:10)
+    Test.runInAsyncScope (node:async_hooks:203:9)
+    Test.run (node:internal/test_runner/test:573:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: plain dict ok
+ok 99 - plain dict ok
+  ---
+  duration_ms: 0.575584
+  ...
+# Subtest: nested dict ok
+ok 100 - nested dict ok
+  ---
+  duration_ms: 0.048667
+  ...
+# Subtest: primitives ok
+ok 101 - primitives ok
+  ---
+  duration_ms: 0.045667
+  ...
+# Subtest: BigInt raises TypeError
+ok 102 - BigInt raises TypeError
+  ---
+  duration_ms: 0.1745
+  ...
+# Subtest: circular reference raises TypeError
+ok 103 - circular reference raises TypeError
+  ---
+  duration_ms: 0.142792
+  ...
+# Subtest: nested unserializable raises TypeError
+ok 104 - nested unserializable raises TypeError
+  ---
+  duration_ms: 0.040041
+  ...
+# Subtest: createApproval rounds a fractional timeout down to the nearest int
+ok 105 - createApproval rounds a fractional timeout down to the nearest int
+  ---
+  duration_ms: 11.305875
+  ...
+# Subtest: createApproval rounds a fractional timeout up to the nearest int
+ok 106 - createApproval rounds a fractional timeout up to the nearest int
+  ---
+  duration_ms: 0.269
+  ...
+# Subtest: createApproval clamps a sub-second timeout to a minimum of 1
+ok 107 - createApproval clamps a sub-second timeout to a minimum of 1
+  ---
+  duration_ms: 0.255125
+  ...
+# Subtest: createApproval leaves an integer timeout unchanged
+ok 108 - createApproval leaves an integer timeout unchanged
+  ---
+  duration_ms: 3.889167
+  ...
+# Subtest: createApproval coerces the client default timeout to an int
+ok 109 - createApproval coerces the client default timeout to an int
+  ---
+  duration_ms: 0.497958
+  ...
+# Subtest: wrap forwards a fractional timeout as an int on the POST body
+ok 110 - wrap forwards a fractional timeout as an int on the POST body
+  ---
+  duration_ms: 1.161583
+  ...
+1..110
+# tests 110
+# suites 0
+# pass 83
+# fail 0
+# cancelled 0
+# skipped 8
+# todo 19
+# duration_ms 945.691875
+
