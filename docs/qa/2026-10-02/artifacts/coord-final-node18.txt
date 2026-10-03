@@ -1,0 +1,879 @@
+Start: 2026-10-03T01:48:26+00:00
+End: 2026-10-03T01:48:27+00:00
+Command: npm exec --yes --package=node@18.17.1 -- node --test tests/ai-sdk.test.mjs tests/idempotency.test.mjs tests/openai-agents.test.mjs tests/pagination.test.mjs tests/serializable.test.mjs tests/timeout.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs
+Exit: 1
+
+TAP version 13
+# Subtest: approved → original execute runs with original args
+ok 1 - approved → original execute runs with original args
+  ---
+  duration_ms: 24.138917
+  ...
+# Subtest: rejected → throws ApprovalRejected and never runs execute
+ok 2 - rejected → throws ApprovalRejected and never runs execute
+  ---
+  duration_ms: 2.290792
+  ...
+# Subtest: non-object input is wrapped under {input}
+ok 3 - non-object input is wrapped under {input}
+  ---
+  duration_ms: 1.054334
+  ...
+# Subtest: gated does not mutate the original tool
+ok 4 - gated does not mutate the original tool
+  ---
+  duration_ms: 0.487
+  ...
+# Subtest: gated throws on a tool without execute
+ok 5 - gated throws on a tool without execute
+  ---
+  duration_ms: 0.623833
+  ...
+# Subtest: gatedTools uses record keys as functionName
+ok 6 - gatedTools uses record keys as functionName
+  ---
+  duration_ms: 2.238875
+  ...
+# Subtest: createApproval with idempotencyKey sends Idempotency-Key header
+ok 7 - createApproval with idempotencyKey sends Idempotency-Key header
+  ---
+  duration_ms: 19.796167
+  ...
+# Subtest: createApproval without idempotencyKey omits the header
+ok 8 - createApproval without idempotencyKey omits the header
+  ---
+  duration_ms: 0.920167
+  ...
+# Subtest: wrap with function-valued idempotencyKey calls generator and sends header
+ok 9 - wrap with function-valued idempotencyKey calls generator and sends header
+  ---
+  duration_ms: 5.134667
+  ...
+# Subtest: approved → original invoke runs with original args
+ok 10 - approved → original invoke runs with original args
+  ---
+  duration_ms: 21.197667
+  ...
+# Subtest: rejected → throws ApprovalRejected and never runs invoke
+ok 11 - rejected → throws ApprovalRejected and never runs invoke
+  ---
+  duration_ms: 3.337708
+  ...
+# Subtest: functionName overrides the tool name
+ok 12 - functionName overrides the tool name
+  ---
+  duration_ms: 1.344
+  ...
+# Subtest: non-JSON-object input is wrapped under {input}
+ok 13 - non-JSON-object input is wrapped under {input}
+  ---
+  duration_ms: 0.5515
+  ...
+# Subtest: gated does not mutate the original tool
+ok 14 - gated does not mutate the original tool
+  ---
+  duration_ms: 0.307875
+  ...
+# Subtest: gated throws on a tool without invoke
+ok 15 - gated throws on a tool without invoke
+  ---
+  duration_ms: 0.127583
+  ...
+# Subtest: gatedTools wraps each tool and keeps its own name
+ok 16 - gatedTools wraps each tool and keeps its own name
+  ---
+  duration_ms: 1.12825
+  ...
+# Subtest: listApprovals sends limit, status, cursor and maps envelope to PageResult
+ok 17 - listApprovals sends limit, status, cursor and maps envelope to PageResult
+  ---
+  duration_ms: 9.446583
+  ...
+# Subtest: listApprovals defaults limit to 50 and omits absent params
+ok 18 - listApprovals defaults limit to 50 and omits absent params
+  ---
+  duration_ms: 2.839417
+  ...
+# Subtest: iterApprovals walks pages via nextCursor and yields items in order
+ok 19 - iterApprovals walks pages via nextCursor and yields items in order
+  ---
+  duration_ms: 13.552
+  ...
+# Subtest: listAuditEventsPage sends action_id/limit/cursor and maps fields
+ok 20 - listAuditEventsPage sends action_id/limit/cursor and maps fields
+  ---
+  duration_ms: 1.697209
+  ...
+# (node:78727) MaxListenersExceededWarning: Possible EventTarget memory leak detected. 11 abort listeners added to [AbortSignal]. Use events.setMaxListeners() to increase limit
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:78727) MaxListenersExceededWarning: Possible EventTarget memory leak detected. 11 abort listeners added to [AbortSignal]. Use events.setMaxListeners() to increase limit
+# Subtest: BE control: missing API key fails before network
+ok 21 - BE control: missing API key fails before network
+  ---
+  duration_ms: 1.415583
+  ...
+# Subtest: BE control: approved named and positional arguments execute once and preserve return values
+ok 22 - BE control: approved named and positional arguments execute once and preserve return values
+  ---
+  duration_ms: 16.650583
+  ...
+# Subtest: BE control: rejection blocks the protected action and retains reason/action ID
+ok 23 - BE control: rejection blocks the protected action and retains reason/action ID
+  ---
+  duration_ms: 0.492541
+  ...
+# Subtest: BE control: rejection wins a contradictory approved/rejected response
+ok 24 - BE control: rejection wins a contradictory approved/rejected response
+  ---
+  duration_ms: 0.342875
+  ...
+# Subtest: BE error matrix: HTTP 401 stops execution without an automatic retry
+ok 25 - BE error matrix: HTTP 401 stops execution without an automatic retry
+  ---
+  duration_ms: 0.61425
+  ...
+# Subtest: BE error matrix: HTTP 403 stops execution without an automatic retry
+ok 26 - BE error matrix: HTTP 403 stops execution without an automatic retry
+  ---
+  duration_ms: 0.685916
+  ...
+# Subtest: BE error matrix: HTTP 409 stops execution without an automatic retry
+ok 27 - BE error matrix: HTTP 409 stops execution without an automatic retry
+  ---
+  duration_ms: 0.532917
+  ...
+# Subtest: BE error matrix: HTTP 422 stops execution without an automatic retry
+ok 28 - BE error matrix: HTTP 422 stops execution without an automatic retry
+  ---
+  duration_ms: 0.300042
+  ...
+# Subtest: BE error matrix: HTTP 429 stops execution without an automatic retry
+ok 29 - BE error matrix: HTTP 429 stops execution without an automatic retry
+  ---
+  duration_ms: 2.924125
+  ...
+# Subtest: BE error matrix: HTTP 500 stops execution without an automatic retry
+ok 30 - BE error matrix: HTTP 500 stops execution without an automatic retry
+  ---
+  duration_ms: 0.341042
+  ...
+# Subtest: BE error matrix: HTTP 503 stops execution without an automatic retry
+ok 31 - BE error matrix: HTTP 503 stops execution without an automatic retry
+  ---
+  duration_ms: 0.78
+  ...
+# Subtest: BE control: structured validation error survives normalization
+ok 32 - BE control: structured validation error survives normalization
+  ---
+  duration_ms: 0.245625
+  ...
+# Subtest: BE control: transport failure stops execution
+ok 33 - BE control: transport failure stops execution
+  ---
+  duration_ms: 0.191958
+  ...
+# Subtest: BE control: malformed successful JSON stops execution
+ok 34 - BE control: malformed successful JSON stops execution
+  ---
+  duration_ms: 0.160083
+  ...
+# Subtest: BE control: pending decision past deadline throws ApprovalTimeout
+ok 35 - BE control: pending decision past deadline throws ApprovalTimeout
+  ---
+  duration_ms: 0.153625
+  ...
+# Subtest: BE control: 404 wait fallback can retrieve a valid approval
+ok 36 - BE control: 404 wait fallback can retrieve a valid approval
+  ---
+  duration_ms: 0.203084
+  ...
+# Subtest: BE control: decision-only response is accepted for backward compatibility
+ok 37 - BE control: decision-only response is accepted for backward compatibility
+  ---
+  duration_ms: 0.249541
+  ...
+# Subtest: BE control: separately configured clients and captured wrappers keep their own auth context
+ok 38 - BE control: separately configured clients and captured wrappers keep their own auth context
+  ---
+  duration_ms: 0.787375
+  ...
+# Subtest: BE control: path and query special characters remain data
+ok 39 - BE control: path and query special characters remain data
+  ---
+  duration_ms: 0.827875
+  ...
+# Subtest: BE property control: seeded JSON values preserve approved and executed intent
+ok 40 - BE property control: seeded JSON values preserve approved and executed intent
+  ---
+  duration_ms: 40.404459
+  ...
+# Subtest: BE control: circular and BigInt arguments fail before request or execution
+ok 41 - BE control: circular and BigInt arguments fail before request or execution
+  ---
+  duration_ms: 1.893708
+  ...
+# Subtest: BE control: tenant settings and legacy audit list use expected wire shapes
+ok 42 - BE control: tenant settings and legacy audit list use expected wire shapes
+  ---
+  duration_ms: 0.333208
+  ...
+# Subtest: BE idempotency scope control: replayed approval does not deduplicate wrapped side effects
+ok 43 - BE idempotency scope control: replayed approval does not deduplicate wrapped side effects
+  ---
+  duration_ms: 0.25375
+  ...
+# Subtest: BE-001: mutation during approval wait must not change the executed intent
+not ok 44 - BE-001: mutation during approval wait must not change the executed intent # TODO BE-001 mutable approval arguments
+  ---
+  duration_ms: 0.735375
+  failureType: 'testCodeFailure'
+  error: 'executed payload must match the human-reviewed request'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    transfer:
+      amount: 1
+      recipient: 'qa-reviewed'
+  actual:
+    transfer:
+      amount: 999
+      recipient: 'qa-changed'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:210:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: BE-002: approval received after deadline must not execute the action
+not ok 45 - BE-002: approval received after deadline must not execute the action # TODO BE-002 local deadline is not enforced on terminal response
+  ---
+  duration_ms: 0.238708
+  failureType: 'testCodeFailure'
+  error: 'a late approval must not run the protected action'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:223:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: BE-002: a stalled request must settle at the approval deadline
+not ok 46 - BE-002: a stalled request must settle at the approval deadline # TODO BE-002 fetch has no deadline or abort signal
+  ---
+  duration_ms: 81.894917
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'still-pending'
+    - 'timeout'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'timeout'
+  actual: 'still-pending'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:238:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: BE-003: lossy non-JSON arguments must fail before approval or execution
+not ok 47 - BE-003: lossy non-JSON arguments must fail before approval or execution # TODO BE-003 serializer accepts silently altered values
+  ---
+  duration_ms: 0.618584
+  failureType: 'testCodeFailure'
+  error: 'silently omitted or changed data must not execute under a different approved payload'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'amount'
+    1: 'amount'
+    2: 'hidden'
+    3: 'targets'
+    4: 'targets'
+    5: 'operation'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:255:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: BE-004: legacy fallback polling must be paced
+not ok 48 - BE-004: legacy fallback polling must be paced # TODO BE-004 no delay between 404/pending poll attempts
+  ---
+  duration_ms: 0.4935
+  failureType: 'testCodeFailure'
+  error: '6 requests ran before a timer/event-loop turn; fallback must be paced'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:272:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions
+ok 49 - BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions
+  ---
+  duration_ms: 30.21675
+  ...
+# Subtest: BE-005: plain-text HTTP error retains useful response detail
+not ok 50 - BE-005: plain-text HTTP error retains useful response detail # TODO BE-005 response body is consumed before text fallback
+  ---
+  duration_ms: 0.358125
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /Synthetic gateway unavailable/. Input:
+    
+    '[502] '
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: '[502] '
+  operator: 'match'
+  stack: |-
+    Object.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:332:12)
+    expectedException (node:assert:724:17)
+    expectsError (node:assert:847:3)
+    Function.rejects (node:assert:912:3)
+    process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:329:3)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: ai: approval runs action exactly once and passes options
+ok 51 - ai: approval runs action exactly once and passes options
+  ---
+  duration_ms: 0.912625
+  ...
+# Subtest: ai: reject prevents direct action execution
+ok 52 - ai: reject prevents direct action execution
+  ---
+  duration_ms: 0.206459
+  ...
+# Subtest: ai: timeout prevents direct action execution
+ok 53 - ai: timeout prevents direct action execution
+  ---
+  duration_ms: 0.10875
+  ...
+# Subtest: ai: transport error prevents direct action execution
+ok 54 - ai: transport error prevents direct action execution
+  ---
+  duration_ms: 0.042958
+  ...
+# Subtest: FE-003 ai: forwards string idempotency key
+not ok 55 - FE-003 ai: forwards string idempotency key # TODO FE-003: adapters omit the declared idempotencyKey option
+  ---
+  duration_ms: 2.043875
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'qa-stable'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'qa-stable'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: FE-003 ai: forwards function idempotency key
+not ok 56 - FE-003 ai: forwards function idempotency key # TODO FE-003: adapters omit the declared idempotencyKey option
+  ---
+  duration_ms: 0.339584
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'qa-generated'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'qa-generated'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: agents: approval runs action exactly once and passes options
+ok 57 - agents: approval runs action exactly once and passes options
+  ---
+  duration_ms: 0.29225
+  ...
+# Subtest: agents: reject prevents direct action execution
+ok 58 - agents: reject prevents direct action execution
+  ---
+  duration_ms: 1.820834
+  ...
+# Subtest: agents: timeout prevents direct action execution
+ok 59 - agents: timeout prevents direct action execution
+  ---
+  duration_ms: 0.385292
+  ...
+# Subtest: agents: transport error prevents direct action execution
+ok 60 - agents: transport error prevents direct action execution
+  ---
+  duration_ms: 0.166791
+  ...
+# Subtest: FE-003 agents: forwards string idempotency key
+not ok 61 - FE-003 agents: forwards string idempotency key # TODO FE-003: adapters omit the declared idempotencyKey option
+  ---
+  duration_ms: 0.458917
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'qa-stable'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'qa-stable'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: FE-003 agents: forwards function idempotency key
+not ok 62 - FE-003 agents: forwards function idempotency key # TODO FE-003: adapters omit the declared idempotencyKey option
+  ---
+  duration_ms: 0.448041
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'qa-generated'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'qa-generated'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: mastra: approval runs action exactly once and passes options
+ok 63 - mastra: approval runs action exactly once and passes options
+  ---
+  duration_ms: 0.314834
+  ...
+# Subtest: mastra: reject prevents direct action execution
+ok 64 - mastra: reject prevents direct action execution
+  ---
+  duration_ms: 0.152292
+  ...
+# Subtest: mastra: timeout prevents direct action execution
+ok 65 - mastra: timeout prevents direct action execution
+  ---
+  duration_ms: 0.442834
+  ...
+# Subtest: mastra: transport error prevents direct action execution
+ok 66 - mastra: transport error prevents direct action execution
+  ---
+  duration_ms: 0.119583
+  ...
+# Subtest: FE-003 mastra: forwards string idempotency key
+not ok 67 - FE-003 mastra: forwards string idempotency key # TODO FE-003: adapters omit the declared idempotencyKey option
+  ---
+  duration_ms: 0.584
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'qa-stable'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'qa-stable'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: FE-003 mastra: forwards function idempotency key
+not ok 68 - FE-003 mastra: forwards function idempotency key # TODO FE-003: adapters omit the declared idempotencyKey option
+  ---
+  duration_ms: 0.19675
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'qa-generated'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'qa-generated'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: langchain: approval runs action exactly once and passes options
+ok 69 - langchain: approval runs action exactly once and passes options
+  ---
+  duration_ms: 0.457541
+  ...
+# Subtest: langchain: reject prevents direct action execution
+ok 70 - langchain: reject prevents direct action execution
+  ---
+  duration_ms: 0.138167
+  ...
+# Subtest: langchain: timeout prevents direct action execution
+ok 71 - langchain: timeout prevents direct action execution
+  ---
+  duration_ms: 0.053166
+  ...
+# Subtest: langchain: transport error prevents direct action execution
+ok 72 - langchain: transport error prevents direct action execution
+  ---
+  duration_ms: 0.098875
+  ...
+# Subtest: FE-003 langchain: forwards string idempotency key
+not ok 73 - FE-003 langchain: forwards string idempotency key # TODO FE-003: adapters omit the declared idempotencyKey option
+  ---
+  duration_ms: 0.093916
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'qa-stable'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'qa-stable'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: FE-003 langchain: forwards function idempotency key
+not ok 74 - FE-003 langchain: forwards function idempotency key # TODO FE-003: adapters omit the declared idempotencyKey option
+  ---
+  duration_ms: 0.0645
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'qa-generated'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'qa-generated'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: Mastra preserves tool binding, input, execution context and return value
+ok 75 - Mastra preserves tool binding, input, execution context and return value
+  ---
+  duration_ms: 0.099125
+  ...
+# Subtest: LangChain allowlist and denylist select tools before creating approvals
+ok 76 - LangChain allowlist and denylist select tools before creating approvals
+  ---
+  duration_ms: 0.0675
+  ...
+# Subtest: LangChain names prefer runName, then name, then serialized id, then fallback
+ok 77 - LangChain names prefer runName, then name, then serialized id, then fallback
+  ---
+  duration_ms: 0.106167
+  ...
+# Subtest: Tools-map helpers preserve distinct tool names
+ok 78 - Tools-map helpers preserve distinct tool names
+  ---
+  duration_ms: 0.1265
+  ...
+# Subtest: Package subpaths resolve in a strict NodeNext TypeScript consumer
+ok 79 - Package subpaths resolve in a strict NodeNext TypeScript consumer
+  ---
+  duration_ms: 410.649083
+  ...
+# Subtest: FE-002 adapters accept explicitly typed callbacks in a strict consumer
+not ok 80 - FE-002 adapters accept explicitly typed callbacks in a strict consumer # TODO FE-002: unknown[] callable constraints reject typed framework callbacks
+  ---
+  duration_ms: 387.12675
+  failureType: 'testCodeFailure'
+  error: |-
+    tests/qa/frontend-consumer.mts(7,3): error TS2322: Type '(input: { amount: number; }) => Promise<number>' is not assignable to type '(...args: unknown[]) => unknown'.
+      Types of parameters 'input' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type '{ amount: number; }'.
+    tests/qa/frontend-consumer.mts(10,3): error TS2322: Type '(_context: object, input: string) => Promise<any>' is not assignable to type '(...args: unknown[]) => unknown'.
+      Types of parameters '_context' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'object'.
+    tests/qa/frontend-consumer.mts(13,3): error TS2322: Type '({ context }: { context: { amount: number; }; }) => Promise<number>' is not assignable to type '(...args: unknown[]) => unknown'.
+      Types of parameters '__0' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type '{ context: { amount: number; }; }'.
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:144:10)
+    Test.runInAsyncScope (node:async_hooks:203:9)
+    Test.run (node:internal/test_runner/test:573:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:318:18)
+    Test.postRun (node:internal/test_runner/test:642:19)
+    Test.run (node:internal/test_runner/test:601:10)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: FE-001 real LangChain tool requests approval before executing
+ok 81 - FE-001 real LangChain tool requests approval before executing # SKIP Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+  ---
+  duration_ms: 0.526
+  ...
+# Subtest: FE-001 real LangChain rejection blocks execution
+ok 82 - FE-001 real LangChain rejection blocks execution # SKIP Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+  ---
+  duration_ms: 0.706417
+  ...
+# Subtest: FE-001 enabling callback alone still swallows rejection
+ok 83 - FE-001 enabling callback alone still swallows rejection # SKIP Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+  ---
+  duration_ms: 0.061708
+  ...
+# Subtest: LangChain control: callback enabled and raiseError propagates rejection
+ok 84 - LangChain control: callback enabled and raiseError propagates rejection # SKIP Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+  ---
+  duration_ms: 2.372042
+  ...
+# Subtest: FE-001 real LangChain timeout blocks execution
+ok 85 - FE-001 real LangChain timeout blocks execution # SKIP Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+  ---
+  duration_ms: 0.042709
+  ...
+# Subtest: FE-001 enabling callback alone still swallows timeout
+ok 86 - FE-001 enabling callback alone still swallows timeout # SKIP Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+  ---
+  duration_ms: 0.02175
+  ...
+# Subtest: LangChain control: callback enabled and raiseError propagates timeout
+ok 87 - LangChain control: callback enabled and raiseError propagates timeout # SKIP Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+  ---
+  duration_ms: 0.020791
+  ...
+# Subtest: LangChain control: callback enabled and approval allows one execution
+ok 88 - LangChain control: callback enabled and approval allows one execution # SKIP Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+  ---
+  duration_ms: 0.021916
+  ...
+# Subtest: README quickstart waits for a decision before calling the payment stub
+ok 89 - README quickstart waits for a decision before calling the payment stub
+  ---
+  duration_ms: 30.382709
+  ...
+# Subtest: README quickstart rejects without calling the payment stub
+ok 90 - README quickstart rejects without calling the payment stub
+  ---
+  duration_ms: 3.782666
+  ...
+# Subtest: README Errors block reports documented rejected, timed-out and HTTP errors
+ok 91 - README Errors block reports documented rejected, timed-out and HTTP errors
+  ---
+  duration_ms: 9.556583
+  ...
+# Subtest: missing SDK configuration has an actionable local error
+ok 92 - missing SDK configuration has an actionable local error
+  ---
+  duration_ms: 0.289625
+  ...
+# Subtest: explicit action names and synchronous return values remain usable
+ok 93 - explicit action names and synchronous return values remain usable
+  ---
+  duration_ms: 0.567958
+  ...
+# Subtest: public VERSION export supplies the contributor version-report workaround
+ok 94 - public VERSION export supplies the contributor version-report workaround
+  ---
+  duration_ms: 33.640042
+  ...
+# Subtest: UX-001 README quickstart should send a recognizable action name
+not ok 95 - UX-001 README quickstart should send a recognizable action name # TODO UX-001: inline anonymous callback is sent as function_name anonymous
+  ---
+  duration_ms: 3.604083
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'anonymous'
+    - 'wireTransfer'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'wireTransfer'
+  actual: 'anonymous'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:135:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: UX-002 README Errors block should propagate transport failures
+not ok 96 - UX-002 README Errors block should propagate transport failures # TODO UX-002: the catch example silently swallows errors outside three listed classes
+  ---
+  duration_ms: 2.93175
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:148:3)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: UX-002 README Errors block should propagate the approved business operation failure
+not ok 97 - UX-002 README Errors block should propagate the approved business operation failure # TODO UX-002: a payment error after approval also vanishes in the example catch
+  ---
+  duration_ms: 2.684292
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:160:3)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: UX-003 documented SDK version command should complete successfully
+not ok 98 - UX-003 documented SDK version command should complete successfully # TODO UX-003: package.json is not an exported package subpath
+  ---
+  duration_ms: 30.24825
+  failureType: 'testCodeFailure'
+  error: |-
+    node:internal/modules/cjs/loader:549
+        throw e;
+        ^
+    
+    Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './package.json' is not defined by "exports" in /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/package.json imported from /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/[eval]
+        at new NodeError (node:internal/errors:405:5)
+        at exportsNotFound (node:internal/modules/esm/resolve:359:10)
+        at packageExportsResolve (node:internal/modules/esm/resolve:695:9)
+        at trySelf (node:internal/modules/cjs/loader:543:34)
+        at Module._resolveFilename (node:internal/modules/cjs/loader:1054:24)
+        at Module._load (node:internal/modules/cjs/loader:922:27)
+        at Module.require (node:internal/modules/cjs/loader:1143:19)
+        at require (node:internal/modules/cjs/helpers:121:18)
+        at [eval]:1:13
+        at Script.runInThisContext (node:vm:123:12) {
+      code: 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+    }
+    
+    Node.js v18.17.1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    new NodeError (node:internal/errors:405:5)
+    exportsNotFound (node:internal/modules/esm/resolve:359:10)
+    packageExportsResolve (node:internal/modules/esm/resolve:695:9)
+    trySelf (node:internal/modules/cjs/loader:543:34)
+    Module._resolveFilename (node:internal/modules/cjs/loader:1054:24)
+    Module._load (node:internal/modules/cjs/loader:922:27)
+    Module.require (node:internal/modules/cjs/loader:1143:19)
+    require (node:internal/modules/cjs/helpers:121:18)
+    [eval]:1:13
+    Script.runInThisContext (node:vm:123:12) {
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:171:10)
+    Test.runInAsyncScope (node:async_hooks:203:9)
+    Test.run (node:internal/test_runner/test:573:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: plain dict ok
+ok 99 - plain dict ok
+  ---
+  duration_ms: 0.575584
+  ...
+# Subtest: nested dict ok
+ok 100 - nested dict ok
+  ---
+  duration_ms: 0.048667
+  ...
+# Subtest: primitives ok
+ok 101 - primitives ok
+  ---
+  duration_ms: 0.045667
+  ...
+# Subtest: BigInt raises TypeError
+ok 102 - BigInt raises TypeError
+  ---
+  duration_ms: 0.1745
+  ...
+# Subtest: circular reference raises TypeError
+ok 103 - circular reference raises TypeError
+  ---
+  duration_ms: 0.142792
+  ...
+# Subtest: nested unserializable raises TypeError
+ok 104 - nested unserializable raises TypeError
+  ---
+  duration_ms: 0.040041
+  ...
+# Subtest: createApproval rounds a fractional timeout down to the nearest int
+ok 105 - createApproval rounds a fractional timeout down to the nearest int
+  ---
+  duration_ms: 11.305875
+  ...
+# Subtest: createApproval rounds a fractional timeout up to the nearest int
+ok 106 - createApproval rounds a fractional timeout up to the nearest int
+  ---
+  duration_ms: 0.269
+  ...
+# Subtest: createApproval clamps a sub-second timeout to a minimum of 1
+ok 107 - createApproval clamps a sub-second timeout to a minimum of 1
+  ---
+  duration_ms: 0.255125
+  ...
+# Subtest: createApproval leaves an integer timeout unchanged
+ok 108 - createApproval leaves an integer timeout unchanged
+  ---
+  duration_ms: 3.889167
+  ...
+# Subtest: createApproval coerces the client default timeout to an int
+ok 109 - createApproval coerces the client default timeout to an int
+  ---
+  duration_ms: 0.497958
+  ...
+# Subtest: wrap forwards a fractional timeout as an int on the POST body
+ok 110 - wrap forwards a fractional timeout as an int on the POST body
+  ---
+  duration_ms: 1.161583
+  ...
+1..110
+# tests 110
+# suites 0
+# pass 83
+# fail 0
+# cancelled 0
+# skipped 8
+# todo 19
+# duration_ms 945.691875

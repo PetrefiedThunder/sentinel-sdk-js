@@ -1,0 +1,7 @@
+Start: 2026-10-03T01:51:44+00:00
+End: 2026-10-03T01:51:44+00:00
+Command: rg -l [private non-repository instruction search expression omitted] docs/qa/2026-10-02/artifacts
+Exit: 0
+
+docs/qa/2026-10-02/artifacts/frontend-instructions-and-runner.txt
+docs/qa/2026-10-02/artifacts/review-source-scope-and-instructions.txt

@@ -1,0 +1,5 @@
+Start: 2026-10-03T01:45:18+00:00
+End: 2026-10-03T01:45:18+00:00
+Command: python3 -c 'from pathlib import Path; from datetime import datetime, timezone; p=Path("docs/qa/2026-10-02/UX-LOG.md"); text=p.read_text().replace("Start: 2026-10-03T01:41:00Z. Planned timebox: 15–20 minutes.","Start: 2026-10-03T01:41:20Z (first logged inspection). Maximum timebox: 20 minutes."); stamp=datetime.now(timezone.utc).isoformat(timespec="seconds"); p.write_text(text+f"\n### {stamp} — UX-C1 complete and final report edit\n\nEnd: {stamp}. Ended early within the maximum timebox after the focused walkthrough and reproducible findings were complete; no idle time added. Final result: 10 tests, 6 pass, 0 fail, 4 active TODO expected failures; UX-001 and UX-002 Medium, UX-003 Low. Source documentation and product behavior unchanged. Added UX-REPORT.md with exact repro steps, evidence, fixes, the adapted Nielsen matrix, and limits. Removed the newly drafted, unexecuted UX-004 demo-output probe after prioritization; no UX-004 finding is retained. Browser/WCAG/screenshots N/A for this Node SDK. Every fetch in executed examples is intercepted, no production contact.\n")'
+Exit: 0
+

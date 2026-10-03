@@ -1,0 +1,340 @@
+Start: 2026-10-03T01:42:56+00:00
+End: 2026-10-03T01:42:56+00:00
+Command: rg -n -A 12 -B 12 'raiseError|awaitHandlers|handleToolStart|class CallbackManager' /private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js
+Exit: 0
+
+104-		this.metadata = metadata;
+105-		this.inheritableMetadata = inheritableMetadata;
+106-		this._parentRunId = _parentRunId;
+107-	}
+108-	get parentRunId() {
+109-		return this._parentRunId;
+110-	}
+111-	async handleText(text) {
+112-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+113-			try {
+114-				await handler.handleText?.(text, this.runId, this._parentRunId, this.tags);
+115-			} catch (err) {
+116:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleText: ${err}`);
+117:				if (handler.raiseError) throw err;
+118-			}
+119:		}, handler.awaitHandlers)));
+120-	}
+121-	async handleCustomEvent(eventName, data, _runId, _tags, _metadata) {
+122-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+123-			try {
+124-				await handler.handleCustomEvent?.(eventName, data, this.runId, this.tags, this.metadata);
+125-			} catch (err) {
+126:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleCustomEvent: ${err}`);
+127:				if (handler.raiseError) throw err;
+128-			}
+129:		}, handler.awaitHandlers)));
+130-	}
+131-};
+132-/**
+133-* Manages callbacks for retriever runs.
+134-*/
+135-var CallbackManagerForRetrieverRun = class extends BaseRunManager {
+136-	getChild(tag) {
+137-		const manager = new CallbackManager(this.runId);
+138-		manager.setHandlers(this.inheritableHandlers);
+139-		manager.addTags(this.inheritableTags);
+140-		manager.addMetadata(this.inheritableMetadata);
+141-		if (tag) manager.addTags([tag], false);
+142-		return manager;
+143-	}
+144-	async handleRetrieverEnd(documents) {
+145-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+146-			if (!handler.ignoreRetriever) try {
+147-				await handler.handleRetrieverEnd?.(documents, this.runId, this._parentRunId, this.tags);
+148-			} catch (err) {
+149:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleRetriever`);
+150:				if (handler.raiseError) throw err;
+151-			}
+152:		}, handler.awaitHandlers)));
+153-	}
+154-	async handleRetrieverError(err) {
+155-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+156-			if (!handler.ignoreRetriever) try {
+157-				await handler.handleRetrieverError?.(err, this.runId, this._parentRunId, this.tags);
+158-			} catch (error) {
+159:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleRetrieverError: ${error}`);
+160:				if (handler.raiseError) throw err;
+161-			}
+162:		}, handler.awaitHandlers)));
+163-	}
+164-};
+165-var CallbackManagerForLLMRun = class extends BaseRunManager {
+166-	async handleLLMNewToken(token, idx, _runId, _parentRunId, _tags, fields) {
+167-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+168-			if (!handler.ignoreLLM) try {
+169-				await handler.handleLLMNewToken?.(token, idx ?? {
+170-					prompt: 0,
+171-					completion: 0
+172-				}, this.runId, this._parentRunId, this.tags, fields);
+173-			} catch (err) {
+174:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleLLMNewToken: ${err}`);
+175:				if (handler.raiseError) throw err;
+176-			}
+177:		}, handler.awaitHandlers)));
+178-	}
+179-	async handleChatModelStreamEvent(event) {
+180-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+181-			if (!handler.ignoreLLM) try {
+182-				await handler.handleChatModelStreamEvent?.(event, this.runId, this._parentRunId, this.tags);
+183-			} catch (err) {
+184:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleChatModelStreamEvent: ${err}`);
+185:				if (handler.raiseError) throw err;
+186-			}
+187:		}, handler.awaitHandlers)));
+188-	}
+189-	async handleLLMError(err, _runId, _parentRunId, _tags, extraParams) {
+190-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+191-			if (!handler.ignoreLLM) try {
+192-				await handler.handleLLMError?.(err, this.runId, this._parentRunId, this.tags, extraParams);
+193-			} catch (err) {
+194:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleLLMError: ${err}`);
+195:				if (handler.raiseError) throw err;
+196-			}
+197:		}, handler.awaitHandlers)));
+198-	}
+199-	async handleLLMEnd(output, _runId, _parentRunId, _tags, extraParams) {
+200-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+201-			if (!handler.ignoreLLM) try {
+202-				await handler.handleLLMEnd?.(output, this.runId, this._parentRunId, this.tags, extraParams);
+203-			} catch (err) {
+204:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleLLMEnd: ${err}`);
+205:				if (handler.raiseError) throw err;
+206-			}
+207:		}, handler.awaitHandlers)));
+208-	}
+209-};
+210-var CallbackManagerForChainRun = class extends BaseRunManager {
+211-	getChild(tag) {
+212-		const manager = new CallbackManager(this.runId);
+213-		manager.setHandlers(this.inheritableHandlers);
+214-		manager.addTags(this.inheritableTags);
+215-		manager.addMetadata(this.inheritableMetadata);
+216-		if (tag) manager.addTags([tag], false);
+217-		return manager;
+218-	}
+219-	async handleChainError(err, _runId, _parentRunId, _tags, kwargs) {
+220-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+221-			if (!handler.ignoreChain) try {
+222-				await handler.handleChainError?.(err, this.runId, this._parentRunId, this.tags, kwargs);
+223-			} catch (err) {
+224:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleChainError: ${err}`);
+225:				if (handler.raiseError) throw err;
+226-			}
+227:		}, handler.awaitHandlers)));
+228-	}
+229-	async handleChainEnd(output, _runId, _parentRunId, _tags, kwargs) {
+230-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+231-			if (!handler.ignoreChain) try {
+232-				await handler.handleChainEnd?.(output, this.runId, this._parentRunId, this.tags, kwargs);
+233-			} catch (err) {
+234:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleChainEnd: ${err}`);
+235:				if (handler.raiseError) throw err;
+236-			}
+237:		}, handler.awaitHandlers)));
+238-	}
+239-	async handleAgentAction(action) {
+240-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+241-			if (!handler.ignoreAgent) try {
+242-				await handler.handleAgentAction?.(action, this.runId, this._parentRunId, this.tags);
+243-			} catch (err) {
+244:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleAgentAction: ${err}`);
+245:				if (handler.raiseError) throw err;
+246-			}
+247:		}, handler.awaitHandlers)));
+248-	}
+249-	async handleAgentEnd(action) {
+250-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+251-			if (!handler.ignoreAgent) try {
+252-				await handler.handleAgentEnd?.(action, this.runId, this._parentRunId, this.tags);
+253-			} catch (err) {
+254:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleAgentEnd: ${err}`);
+255:				if (handler.raiseError) throw err;
+256-			}
+257:		}, handler.awaitHandlers)));
+258-	}
+259-};
+260-var CallbackManagerForToolRun = class extends BaseRunManager {
+261-	getChild(tag) {
+262-		const manager = new CallbackManager(this.runId);
+263-		manager.setHandlers(this.inheritableHandlers);
+264-		manager.addTags(this.inheritableTags);
+265-		manager.addMetadata(this.inheritableMetadata);
+266-		if (tag) manager.addTags([tag], false);
+267-		return manager;
+268-	}
+269-	async handleToolError(err) {
+270-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+271-			if (!handler.ignoreAgent) try {
+272-				await handler.handleToolError?.(err, this.runId, this._parentRunId, this.tags);
+273-			} catch (err) {
+274:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleToolError: ${err}`);
+275:				if (handler.raiseError) throw err;
+276-			}
+277:		}, handler.awaitHandlers)));
+278-	}
+279-	async handleToolEvent(chunk) {
+280-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+281-			if (!handler.ignoreAgent) try {
+282-				await handler.handleToolEvent?.(chunk, this.runId, this._parentRunId, this.tags);
+283-			} catch (err) {
+284:				if (handler.raiseError) throw err;
+285-			}
+286:		}, handler.awaitHandlers)));
+287-	}
+288-	async handleToolEnd(output) {
+289-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+290-			if (!handler.ignoreAgent) try {
+291-				await handler.handleToolEnd?.(output, this.runId, this._parentRunId, this.tags);
+292-			} catch (err) {
+293:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleToolEnd: ${err}`);
+294:				if (handler.raiseError) throw err;
+295-			}
+296:		}, handler.awaitHandlers)));
+297-	}
+298-};
+299-/**
+300-* @example
+301-* ```typescript
+302-* const prompt = PromptTemplate.fromTemplate("What is the answer to {question}?");
+303-*
+304-* // Example of using LLMChain with OpenAI and a simple prompt
+305-* const chain = new LLMChain({
+306-*   llm: new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0.9 }),
+307-*   prompt,
+308-* });
+309-*
+310-* // Running the chain with a single question
+311-* const result = await chain.call({
+312-*   question: "What is the airspeed velocity of an unladen swallow?",
+313-* });
+314-* console.log("The answer is:", result);
+315-* ```
+316-*/
+317:var CallbackManager = class CallbackManager extends BaseCallbackManager {
+318-	handlers = [];
+319-	inheritableHandlers = [];
+320-	tags = [];
+321-	inheritableTags = [];
+322-	metadata = {};
+323-	inheritableMetadata = {};
+324-	name = "callback_manager";
+325-	_parentRunId;
+326-	constructor(parentRunId, options) {
+327-		super();
+328-		this.handlers = options?.handlers ?? this.handlers;
+329-		this.inheritableHandlers = options?.inheritableHandlers ?? this.inheritableHandlers;
+--
+342-		return this._parentRunId;
+343-	}
+344-	async handleLLMStart(llm, prompts, runId = void 0, _parentRunId = void 0, extraParams = void 0, _tags = void 0, _metadata = void 0, runName = void 0) {
+345-		return Promise.all(prompts.map(async (prompt, idx) => {
+346-			const runId_ = idx === 0 && runId ? runId : v7();
+347-			await Promise.all(this.handlers.map((handler) => {
+348-				if (handler.ignoreLLM) return;
+349-				if (isBaseTracer(handler)) handler._createRunForLLMStart(llm, [prompt], runId_, this._parentRunId, extraParams, this.tags, this.metadata, runName);
+350-				return consumeCallback(async () => {
+351-					try {
+352-						await handler.handleLLMStart?.(llm, [prompt], runId_, this._parentRunId, extraParams, this.tags, this.metadata, runName);
+353-					} catch (err) {
+354:						(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleLLMStart: ${err}`);
+355:						if (handler.raiseError) throw err;
+356-					}
+357:				}, handler.awaitHandlers);
+358-			}));
+359-			return new CallbackManagerForLLMRun(runId_, this.handlers, this.inheritableHandlers, this.tags, this.inheritableTags, this.metadata, this.inheritableMetadata, this._parentRunId);
+360-		}));
+361-	}
+362-	async handleChatModelStart(llm, messages, runId = void 0, _parentRunId = void 0, extraParams = void 0, _tags = void 0, _metadata = void 0, runName = void 0) {
+363-		return Promise.all(messages.map(async (messageGroup, idx) => {
+364-			const runId_ = idx === 0 && runId ? runId : v7();
+365-			await Promise.all(this.handlers.map((handler) => {
+366-				if (handler.ignoreLLM) return;
+367-				if (isBaseTracer(handler)) handler._createRunForChatModelStart(llm, [messageGroup], runId_, this._parentRunId, extraParams, this.tags, this.metadata, runName);
+368-				return consumeCallback(async () => {
+369-					try {
+370-						if (handler.handleChatModelStart) await handler.handleChatModelStart?.(llm, [messageGroup], runId_, this._parentRunId, extraParams, this.tags, this.metadata, runName);
+371-						else if (handler.handleLLMStart) {
+372-							const messageString = getBufferString(messageGroup);
+373-							await handler.handleLLMStart?.(llm, [messageString], runId_, this._parentRunId, extraParams, this.tags, this.metadata, runName);
+374-						}
+375-					} catch (err) {
+376:						(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleLLMStart: ${err}`);
+377:						if (handler.raiseError) throw err;
+378-					}
+379:				}, handler.awaitHandlers);
+380-			}));
+381-			return new CallbackManagerForLLMRun(runId_, this.handlers, this.inheritableHandlers, this.tags, this.inheritableTags, this.metadata, this.inheritableMetadata, this._parentRunId);
+382-		}));
+383-	}
+384-	async handleChainStart(chain, inputs, runId = v7(), runType = void 0, _tags = void 0, _metadata = void 0, runName = void 0, _parentRunId = void 0, extra = void 0) {
+385-		await Promise.all(this.handlers.map((handler) => {
+386-			if (handler.ignoreChain) return;
+387-			if (isBaseTracer(handler)) handler._createRunForChainStart(chain, inputs, runId, this._parentRunId, this.tags, this.metadata, runType, runName, extra);
+388-			return consumeCallback(async () => {
+389-				try {
+390-					await handler.handleChainStart?.(chain, inputs, runId, this._parentRunId, this.tags, this.metadata, runType, runName, extra);
+391-				} catch (err) {
+392:					(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleChainStart: ${err}`);
+393:					if (handler.raiseError) throw err;
+394-				}
+395:			}, handler.awaitHandlers);
+396-		}));
+397-		return new CallbackManagerForChainRun(runId, this.handlers, this.inheritableHandlers, this.tags, this.inheritableTags, this.metadata, this.inheritableMetadata, this._parentRunId);
+398-	}
+399:	async handleToolStart(tool, input, runId = v7(), _parentRunId = void 0, _tags = void 0, _metadata = void 0, runName = void 0, toolCallId = void 0) {
+400-		await Promise.all(this.handlers.map((handler) => {
+401-			if (handler.ignoreAgent) return;
+402-			if (isBaseTracer(handler)) handler._createRunForToolStart(tool, input, runId, this._parentRunId, this.tags, this.metadata, runName);
+403-			return consumeCallback(async () => {
+404-				try {
+405:					await handler.handleToolStart?.(tool, typeof input === "string" ? input : JSON.stringify(input), runId, this._parentRunId, this.tags, this.metadata, runName, toolCallId);
+406-				} catch (err) {
+407:					(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleToolStart: ${err}`);
+408:					if (handler.raiseError) throw err;
+409-				}
+410:			}, handler.awaitHandlers);
+411-		}));
+412-		return new CallbackManagerForToolRun(runId, this.handlers, this.inheritableHandlers, this.tags, this.inheritableTags, this.metadata, this.inheritableMetadata, this._parentRunId);
+413-	}
+414-	async handleRetrieverStart(retriever, query, runId = v7(), _parentRunId = void 0, _tags = void 0, _metadata = void 0, runName = void 0) {
+415-		await Promise.all(this.handlers.map((handler) => {
+416-			if (handler.ignoreRetriever) return;
+417-			if (isBaseTracer(handler)) handler._createRunForRetrieverStart(retriever, query, runId, this._parentRunId, this.tags, this.metadata, runName);
+418-			return consumeCallback(async () => {
+419-				try {
+420-					await handler.handleRetrieverStart?.(retriever, query, runId, this._parentRunId, this.tags, this.metadata, runName);
+421-				} catch (err) {
+422:					(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleRetrieverStart: ${err}`);
+423:					if (handler.raiseError) throw err;
+424-				}
+425:			}, handler.awaitHandlers);
+426-		}));
+427-		return new CallbackManagerForRetrieverRun(runId, this.handlers, this.inheritableHandlers, this.tags, this.inheritableTags, this.metadata, this.inheritableMetadata, this._parentRunId);
+428-	}
+429-	async handleCustomEvent(eventName, data, runId, _tags, _metadata) {
+430-		await Promise.all(this.handlers.map((handler) => consumeCallback(async () => {
+431-			if (!handler.ignoreCustomEvent) try {
+432-				await handler.handleCustomEvent?.(eventName, data, runId, this.tags, this.metadata);
+433-			} catch (err) {
+434:				(handler.raiseError ? console.error : console.warn)(`Error in handler ${handler.constructor.name}, handleCustomEvent: ${err}`);
+435:				if (handler.raiseError) throw err;
+436-			}
+437:		}, handler.awaitHandlers)));
+438-	}
+439-	addHandler(handler, inherit = true) {
+440-		this.handlers.push(handler);
+441-		if (inherit) this.inheritableHandlers.push(handler);
+442-	}
+443-	removeHandler(handler) {
+444-		this.handlers = this.handlers.filter((_handler) => _handler !== handler);
+445-		this.inheritableHandlers = this.inheritableHandlers.filter((_handler) => _handler !== handler);
+446-	}
+447-	setHandlers(handlers, inherit = true) {
+448-		this.handlers = [];
+449-		this.inheritableHandlers = [];

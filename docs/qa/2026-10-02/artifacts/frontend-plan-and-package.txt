@@ -1,0 +1,700 @@
+Start: 2026-10-03T01:41:14+00:00
+End: 2026-10-03T01:41:14+00:00
+Command: python3 -c 'from pathlib import Path; files=["docs/qa/2026-10-02/PLAN.md","package.json","tsconfig.json","src/adapters/ai-sdk.ts","src/adapters/openai-agents.ts","src/adapters/langchain.ts","src/adapters/mastra.ts"];[(print("FILE", f), print(Path(f).read_text())) for f in files]'
+Exit: 0
+
+FILE docs/qa/2026-10-02/PLAN.md
+# QA plan — Sentinel JavaScript SDK — 2026-10-02
+
+PR: opened by orchestrator
+CI status: pending at time of writing
+
+## Scope and controls
+
+Worktree: `/Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js`; branch: `qa/2026-10-02-sweep`; starting commit: `717392b`. Remote identity: `PetrefiedThunder/sentinel-sdk-js`. Initial working tree clean. This is a Node.js/TypeScript SDK, not RegEngine and not a web app. No local repository AGENTS.md was found. The ancestor `/Users/sellers/AGENTS.md` contains stale RegEngine guidance; current session instructions govern this SDK task.
+
+Only tests, QA test configuration and documentation will change. No product fixes, commits, pushes, PR API calls, deployments, environment files, credentials, remote services or databases. Network is restricted to public dependency/package metadata installation. Tests use synthetic data and mocked fetch or loopback servers. The logging runner passes only basic process variables to commands and does not forward service credentials. No live smoke/demo or schema-refresh commands will run.
+
+UTC timestamps fall on October 3 while the requested Los Angeles QA date is October 2. Every pass has a separate log; SESSION-LOG.md indexes and consolidates commands, failures, charters and edits. Artifacts are text/JSON reports. UI screenshots would misrepresent an SDK and are not applicable.
+
+## Repository map
+
+| Area | Surface | Main risk |
+| --- | --- | --- |
+| `src/index.ts` | Client, approval wrapper, polling, global configuration, pagination, audit/usage requests | Unapproved or duplicate execution; wrong client; hangs; transport errors |
+| `src/adapters/{ai-sdk,openai-agents,langchain,mastra}.ts` | Four framework integrations | Approval bypass, changed tool arguments, broken package interoperability |
+| `src/generated/api.d.ts`, `src/generated/index.ts` | Checked-in OpenAPI-derived contracts | Drift between hand-written wire shapes and checked-in contract |
+| `tests/*.mjs` | Node built-in unit tests; separate live smoke | Gaps in negative paths, adapter coverage and execution safety |
+| `package.json`, `tsconfig.json`, lockfile | ESM exports, declarations, package contents, Node compatibility | Consumers cannot install, import or compile |
+| `README.md`, `CONTRIBUTING.md`, `examples/demo.mjs` | Installation, quickstart, examples, API discoverability | Copied examples fail, unsafe assumptions, unclear recovery |
+| `.github/workflows/` | Existing verification configuration (read only) | New QA checks not exercised by existing CI |
+
+## Risk ranking
+
+Impact and likelihood use 1–5 scales; score is impact × likelihood. Ranking is initial and will be revised only with evidence.
+
+| Rank | Risk | Impact | Likelihood | Score |
+| --- | --- | ---: | ---: | ---: |
+| 1 | Wrapped action executes without the exact approved intent or more than once | 5 | 4 | 20 |
+| 2 | Polling/HTTP timeout, failure or malformed response leaves work hanging or unsafe | 5 | 4 | 20 |
+| 3 | Framework adapter changes/bypasses approval or tool behavior | 5 | 3 | 15 |
+| 4 | Credentials/client context leak across concurrent requests or reconfiguration | 5 | 3 | 15 |
+| 5 | Published exports/types/examples fail in supported consumers | 4 | 3 | 12 |
+| 6 | Serialization, query boundaries or contract drift misrepresent requests | 4 | 3 | 12 |
+| 7 | Dependency supply chain and accidental sensitive package content | 4 | 2 | 8 |
+| 8 | Error messages and docs prevent diagnosis or misstate safety guarantees | 3 | 3 | 9 |
+
+## Three passes and methods
+
+1. **Backend QA → SDK core transport and safety.** Establish the unmodified suite with V8 coverage, build and strict typecheck. Use boundary/equivalence cases, deterministic seeded generated cases, auth-header/client-isolation matrices, idempotency/concurrency probes, error and cancellation probes, and offline checks against the checked-in schema. Review OWASP API risks at the SDK boundary; server authorization cannot be established here. These methods target the highest-impact fail-closed behavior with reproducible fast tests rather than production integration.
+2. **Frontend QA → package and framework consumer integration.** There is no DOM/UI. Verify the npm artifact, ESM exports/declarations, supported Node assumptions and adapter behavior with stubbed tools; build/typecheck and isolated consumer smoke tests replace application build and browser E2E. Cross-browser, Lighthouse, console/network UI checks and screenshots are not applicable. Use dependency audit via public npm metadata. A frontend lint command will be checked for availability; no speculative lint policy will be added.
+3. **UX QA → developer experience.** Walk through README install/quickstart/API examples, discoverability, error recovery and async states using local stubs; assess Nielsen heuristics adapted to an SDK (feedback, consistency, control, prevention, recovery, documentation). WCAG/axe, keyboard/screen reader, responsive layouts and screenshot requirements do not apply without UI. Retain executable transcript evidence instead.
+
+Each pass has one or more 15–20 minute exploratory charters with UTC start/end and outcomes. Passes may run concurrently as independent workstreams, with distinct logs and file ownership. Baseline coverage is captured before new QA tests. The test pyramid is primarily unit/negative-path tests, a smaller set of real loopback HTTP/package integration tests, and no live production end-to-end tests. Bugs are documented and retained as expected-failure/TODO tests keyed to finding IDs; product behavior stays unchanged. Tests must never contact the SDK's production default URL.
+
+## Acceptance and exclusions
+
+All five mandatory documents, separate pass logs and reproducible artifacts exist; baseline and final coverage use the same source denominator; added tests pass or are explicit expected failures; a fresh independent review checks findings, test isolation and scope. Findings include exact reproduction, expected/actual, evidence and fixes. Default suites remain green. PR/remote CI is owned by the orchestrator and pending at writing. No full framework service, live API schema freshness, server-side auth matrix, delivery channels, production billing, browser app or performance/load infrastructure is in scope.
+
+FILE package.json
+{
+  "name": "sentinel-oversight",
+  "version": "0.1.0",
+  "description": "Human-in-the-loop approval for AI agent actions — one wrapper, magic-link approve/reject.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./langchain": {
+      "import": "./dist/adapters/langchain.js",
+      "types": "./dist/adapters/langchain.d.ts"
+    },
+    "./mastra": {
+      "import": "./dist/adapters/mastra.js",
+      "types": "./dist/adapters/mastra.d.ts"
+    },
+    "./ai-sdk": {
+      "import": "./dist/adapters/ai-sdk.js",
+      "types": "./dist/adapters/ai-sdk.d.ts"
+    },
+    "./openai-agents": {
+      "import": "./dist/adapters/openai-agents.js",
+      "types": "./dist/adapters/openai-agents.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs",
+    "smoke": "node tests/smoke.mjs",
+    "demo": "node examples/demo.mjs",
+    "gen:types": "openapi-typescript https://api.pauseapi.app/openapi.json -o src/generated/api.d.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "approval",
+    "human-in-the-loop",
+    "sentinel",
+    "agent-safety",
+    "llm",
+    "guardrails",
+    "oversight"
+  ],
+  "author": "Christopher Sellers / RegEngine, Inc.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PetrefiedThunder/sentinel-sdk-js"
+  },
+  "homepage": "https://pauseapi.app",
+  "bugs": "https://github.com/PetrefiedThunder/sentinel-sdk-js/issues",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "peerDependencies": {
+    "@openai/agents": ">=0.1.0",
+    "ai": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@openai/agents": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    }
+  },
+  "overrides": {
+    "undici": "^6.29.0"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^11.0.1",
+    "@semantic-release/github": "^12.0.9",
+    "@semantic-release/npm": "^13.1.5",
+    "@semantic-release/release-notes-generator": "^14.1.1",
+    "@types/node": "^26.4.1",
+    "conventional-changelog-conventionalcommits": "^10.2.1",
+    "openapi-typescript": "^7.4.0",
+    "semantic-release": "^25.0.9",
+    "typescript": "^5.5.0"
+  }
+}
+
+FILE tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "tests", "examples"]
+}
+
+FILE src/adapters/ai-sdk.ts
+/**
+ * Vercel AI SDK adapter — gate an AI SDK `tool({...})` call behind Sentinel
+ * approval.
+ *
+ *   import { generateText, tool } from 'ai';
+ *   import { z } from 'zod';
+ *   import { configure } from 'sentinel-oversight';
+ *   import { gated, gatedTools } from 'sentinel-oversight/ai-sdk';
+ *
+ *   configure({ apiKey: process.env.SENTINEL_API_KEY! });
+ *
+ *   const wireTransfer = gated(
+ *     tool({
+ *       description: 'Wire USD between accounts',
+ *       inputSchema: z.object({
+ *         amount_usd: z.number(),
+ *         from: z.string(),
+ *         to: z.string(),
+ *       }),
+ *       execute: async ({ amount_usd, to }) => {
+ *         return stripe.transfers.create({ amount: amount_usd * 100, destination: to });
+ *       },
+ *     }),
+ *     { functionName: 'wire_transfer', riskLevel: 'high', approvers: ['ops@acme.com'] }
+ *   );
+ *
+ *   await generateText({ model, tools: { wire_transfer: wireTransfer }, ... });
+ *
+ * Or wrap a whole tools map at once — names come from the record keys, which
+ * is also the name the model sees:
+ *
+ *   const tools = gatedTools({ wire_transfer, delete_database }, { riskLevel: 'high' });
+ *
+ * Implementation: returns a new tool object with the same shape; `execute`
+ * is wrapped so it pauses for approval before calling the original execute.
+ * AI SDK calls `execute(input, options)` where `input` is the value parsed
+ * by `inputSchema` — that's what Sentinel shows to the human approver as
+ * the approval `arguments`.
+ *
+ * No hard dependency on the `ai` package — duck-typed against the public
+ * tool shape (`description`, `inputSchema`, `execute`) so we work with any
+ * AI SDK version exposing `execute(input, options)`.
+ */
+
+import {
+  ApprovalRejected,
+  type OversightOptions,
+  SentinelClient,
+  getClient,
+} from '../index.js';
+
+export interface AiSdkGateOptions extends OversightOptions {
+  client?: SentinelClient;
+}
+
+interface AiSdkToolLike {
+  description?: string;
+  execute?: (...args: unknown[]) => unknown | Promise<unknown>;
+  [key: string]: unknown;
+}
+
+export function gated<T extends AiSdkToolLike>(
+  tool: T,
+  opts: AiSdkGateOptions = {}
+): T {
+  if (typeof tool.execute !== 'function') {
+    // Tools without execute() are client-executed / approval-by-other-means;
+    // there is nothing for Sentinel to gate.
+    throw new TypeError(
+      'sentinel-oversight/ai-sdk: gated() requires a tool with an execute() function'
+    );
+  }
+
+  const sentinel = opts.client ?? getClient();
+  const toolName = opts.functionName ?? 'ai_sdk_tool';
+  const originalExecute = tool.execute.bind(tool);
+
+  const wrappedExecute = async (...args: unknown[]): Promise<unknown> => {
+    // AI SDK calls execute(input, options). `input` is the parsed
+    // inputSchema value — that's what we show to the human approver.
+    const input = args[0];
+
+    const normalized: Record<string, unknown> =
+      input && typeof input === 'object' && !Array.isArray(input)
+        ? (input as Record<string, unknown>)
+        : { input };
+
+    const approval = await sentinel.createApproval({
+      functionName: toolName,
+      arguments: normalized,
+      riskLevel: opts.riskLevel,
+      approvers: opts.approvers,
+      timeoutSeconds: opts.timeoutSeconds,
+    });
+
+    const decision = await sentinel.waitForDecision(
+      approval.action_id,
+      opts.timeoutSeconds
+    );
+
+    if (decision.decision === 'rejected' || decision.status === 'rejected') {
+      throw new ApprovalRejected(
+        (decision.reason as string) || 'Approval rejected by Sentinel',
+        approval.action_id
+      );
+    }
+
+    return originalExecute(...args);
+  };
+
+  // Return a new object with the same shape (don't mutate the original)
+  return { ...tool, execute: wrappedExecute } as T;
+}
+
+/**
+ * Wrap every tool in an AI SDK `tools` record. The record key is the tool
+ * name the model sees, so it is also used as the Sentinel `functionName`
+ * (unless overridden via opts.functionName, which would apply to all tools
+ * and is therefore ignored here).
+ */
+export function gatedTools<T extends Record<string, AiSdkToolLike>>(
+  tools: T,
+  opts: AiSdkGateOptions = {}
+): T {
+  const out: Record<string, AiSdkToolLike> = {};
+  for (const [name, tool] of Object.entries(tools)) {
+    out[name] = gated(tool, { ...opts, functionName: name });
+  }
+  return out as T;
+}
+
+FILE src/adapters/openai-agents.ts
+/**
+ * OpenAI Agents (JS/TS) adapter — gate an `@openai/agents` `tool({...})`
+ * call behind Sentinel approval.
+ *
+ *   import { Agent, run, tool } from '@openai/agents';
+ *   import { z } from 'zod';
+ *   import { configure } from 'sentinel-oversight';
+ *   import { gated, gatedTools } from 'sentinel-oversight/openai-agents';
+ *
+ *   configure({ apiKey: process.env.SENTINEL_API_KEY! });
+ *
+ *   const wireTransfer = gated(
+ *     tool({
+ *       name: 'wire_transfer',
+ *       description: 'Wire USD between accounts',
+ *       parameters: z.object({
+ *         amount_usd: z.number(),
+ *         from: z.string(),
+ *         to: z.string(),
+ *       }),
+ *       execute: async ({ amount_usd, to }) => {
+ *         return stripe.transfers.create({ amount: amount_usd * 100, destination: to });
+ *       },
+ *     }),
+ *     { riskLevel: 'high', approvers: ['ops@acme.com'] }
+ *   );
+ *
+ *   const agent = new Agent({ name: 'Banker', tools: [wireTransfer] });
+ *   await run(agent, 'wire Alice $50,000');
+ *
+ * Or wrap several tools at once — each keeps its own `name`, which is also
+ * the Sentinel `functionName`:
+ *
+ *   const tools = gatedTools([wireTransfer, deleteDatabase], { riskLevel: 'high' });
+ *
+ * Implementation: the object returned by `tool()` is a FunctionTool whose
+ * `invoke(runContext, input, details)` is the SDK's tool-execution entry —
+ * `input` is the raw JSON-string of arguments the model produced. We return
+ * a new tool with the same shape whose `invoke` is wrapped so it pauses for
+ * approval (showing the parsed arguments to the human) before delegating to
+ * the original `invoke`.
+ *
+ * No hard dependency on @openai/agents — duck-typed against the public
+ * FunctionTool shape (`name`, `invoke`) so we work with any version exposing
+ * `invoke(runContext, input, details)`.
+ */
+
+import {
+  ApprovalRejected,
+  type OversightOptions,
+  SentinelClient,
+  getClient,
+} from '../index.js';
+
+export interface OpenAiAgentsGateOptions extends OversightOptions {
+  client?: SentinelClient;
+}
+
+interface FunctionToolLike {
+  name?: string;
+  description?: string;
+  invoke: (...args: unknown[]) => unknown | Promise<unknown>;
+  [key: string]: unknown;
+}
+
+export function gated<T extends FunctionToolLike>(
+  tool: T,
+  opts: OpenAiAgentsGateOptions = {}
+): T {
+  if (typeof tool.invoke !== 'function') {
+    // Only function tools (created via tool({...})) have invoke(); hosted /
+    // built-in tools are executed server-side and can't be gated here.
+    throw new TypeError(
+      'sentinel-oversight/openai-agents: gated() requires a function tool with an invoke() method'
+    );
+  }
+
+  const sentinel = opts.client ?? getClient();
+  const toolName = opts.functionName ?? tool.name ?? 'openai_agents_tool';
+  const originalInvoke = tool.invoke.bind(tool);
+
+  const wrappedInvoke = async (...args: unknown[]): Promise<unknown> => {
+    // The SDK calls invoke(runContext, input, details) where `input` is the
+    // raw JSON-string of arguments the model produced. Parse it to a plain
+    // object so the human approver sees structured arguments.
+    const rawInput = args[1];
+    const normalized = normalizeArguments(rawInput);
+
+    const approval = await sentinel.createApproval({
+      functionName: toolName,
+      arguments: normalized,
+      riskLevel: opts.riskLevel,
+      approvers: opts.approvers,
+      timeoutSeconds: opts.timeoutSeconds,
+    });
+
+    const decision = await sentinel.waitForDecision(
+      approval.action_id,
+      opts.timeoutSeconds
+    );
+
+    if (decision.decision === 'rejected' || decision.status === 'rejected') {
+      throw new ApprovalRejected(
+        (decision.reason as string) || 'Approval rejected by Sentinel',
+        approval.action_id
+      );
+    }
+
+    return originalInvoke(...args);
+  };
+
+  // Return a new object with the same shape (don't mutate the original)
+  return { ...tool, invoke: wrappedInvoke } as T;
+}
+
+function normalizeArguments(rawInput: unknown): Record<string, unknown> {
+  // invoke receives `input` as a JSON string. Parse it; if it decodes to a
+  // plain object that's the arguments dict. Anything else (array, scalar, or
+  // unparseable) is wrapped so the Sentinel API always receives an object.
+  if (typeof rawInput === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(rawInput);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+      return { input: parsed };
+    } catch {
+      return { input: rawInput };
+    }
+  }
+  if (rawInput && typeof rawInput === 'object' && !Array.isArray(rawInput)) {
+    return rawInput as Record<string, unknown>;
+  }
+  return { input: rawInput };
+}
+
+/**
+ * Wrap every tool in an `@openai/agents` tools array. Each tool keeps its own
+ * `name`, which is the name the model sees, so it is used as the Sentinel
+ * `functionName` (opts.functionName, which would apply to all tools, is
+ * therefore ignored here).
+ */
+export function gatedTools<T extends FunctionToolLike>(
+  tools: T[],
+  opts: OpenAiAgentsGateOptions = {}
+): T[] {
+  return tools.map((tool) =>
+    gated(tool, { ...opts, functionName: undefined })
+  );
+}
+
+FILE src/adapters/langchain.ts
+/**
+ * LangChain.js adapter — pause every (or selected) tool call for human approval.
+ *
+ *   import { ChatOpenAI } from '@langchain/openai';
+ *   import { createAgent, tool } from 'langchain';
+ *   import { configure } from 'sentinel-oversight';
+ *   import { SentinelCallbackHandler } from 'sentinel-oversight/langchain';
+ *
+ *   configure({ apiKey: process.env.SENTINEL_API_KEY! });
+ *
+ *   const agent = createAgent({ model: new ChatOpenAI(), tools: [...] });
+ *
+ *   await agent.invoke(
+ *     { messages: [{ role: 'user', content: 'send Alice $50,000' }] },
+ *     {
+ *       callbacks: [
+ *         new SentinelCallbackHandler({
+ *           riskLevel: 'high',
+ *           approvers: ['alice@acme.com'],
+ *           toolAllowlist: ['wire_transfer', 'delete_database'],
+ *         }),
+ *       ],
+ *     }
+ *   );
+ *
+ * Semantics: in handleToolStart we create a Sentinel approval and BLOCK until
+ * a human decides. On approve → LangChain proceeds with the tool call. On
+ * reject or timeout → we throw, which aborts the chain.
+ *
+ * No hard dependency on @langchain/core — we duck-type the callback shape.
+ * LangChain accepts plain objects with the right method names as callbacks,
+ * so this works with @langchain/core ≥ 0.1.x without us pinning a version.
+ */
+
+import {
+  ApprovalRejected,
+  type OversightOptions,
+  SentinelClient,
+  getClient,
+} from '../index.js';
+
+export interface SentinelCallbackOptions extends OversightOptions {
+  /** If set, ONLY tools whose name matches one of these get gated. Else all tools. */
+  toolAllowlist?: string[];
+  /** Tools to skip — useful for read-only / cheap tools you don't want to slow down. */
+  toolDenylist?: string[];
+  /**
+   * Optional pre-built client. If omitted we use the module-level default
+   * configured via configure({apiKey}). Useful for tests or multi-tenant apps.
+   */
+  client?: SentinelClient;
+}
+
+/**
+ * Drop into any LangChain.js call as a `callbacks: []` entry. Compatible with
+ * `BaseCallbackHandler` via structural typing — no langchain import required.
+ */
+export class SentinelCallbackHandler {
+  // BaseCallbackHandler-compatible fields
+  name = 'SentinelCallbackHandler';
+  awaitHandlers = true; // LangChain must await us; we can't pause non-blocking
+  ignoreLLM = true; // we don't gate LLM calls, only tool execution
+  ignoreChain = true;
+  ignoreAgent = true;
+  ignoreRetriever = true;
+
+  constructor(private readonly opts: SentinelCallbackOptions = {}) {}
+
+  async handleToolStart(
+    tool: unknown,
+    input: unknown,
+    _runId: string,
+    _parentRunId?: string,
+    _tags?: string[],
+    _metadata?: Record<string, unknown>,
+    runName?: string
+  ): Promise<void> {
+    const toolName = this.deriveName(tool, runName);
+
+    if (this.opts.toolAllowlist && !this.opts.toolAllowlist.includes(toolName)) return;
+    if (this.opts.toolDenylist?.includes(toolName)) return;
+
+    const client = this.opts.client ?? getClient();
+    const args = this.normalizeArguments(input);
+
+    const approval = await client.createApproval({
+      functionName: toolName,
+      arguments: args,
+      riskLevel: this.opts.riskLevel,
+      approvers: this.opts.approvers,
+      timeoutSeconds: this.opts.timeoutSeconds,
+    });
+
+    const decision = await client.waitForDecision(
+      approval.action_id,
+      this.opts.timeoutSeconds
+    );
+
+    if (decision.decision === 'rejected' || decision.status === 'rejected') {
+      throw new ApprovalRejected(
+        (decision.reason as string) || 'Approval rejected by Sentinel',
+        approval.action_id
+      );
+    }
+    // approved → return; LangChain proceeds to actually invoke the tool
+  }
+
+  private deriveName(tool: unknown, runName: string | undefined): string {
+    if (typeof runName === 'string' && runName) return runName;
+    if (tool && typeof tool === 'object') {
+      const t = tool as { name?: unknown; id?: unknown };
+      if (typeof t.name === 'string' && t.name) return t.name;
+      if (Array.isArray(t.id) && t.id.length > 0) {
+        const last = t.id[t.id.length - 1];
+        if (typeof last === 'string') return last;
+      }
+    }
+    return 'tool';
+  }
+
+  private normalizeArguments(input: unknown): Record<string, unknown> {
+    // LangChain passes the tool input as a string for ReAct-style tools,
+    // or as a parsed object for structured tools. The Sentinel API requires
+    // `arguments` to be a dict, so wrap strings under {input: <str>}.
+    if (typeof input === 'string') return { input };
+    if (input && typeof input === 'object' && !Array.isArray(input)) {
+      return input as Record<string, unknown>;
+    }
+    return { value: input };
+  }
+}
+
+FILE src/adapters/mastra.ts
+/**
+ * Mastra adapter — gate a Mastra `createTool({...})` call behind Sentinel approval.
+ *
+ *   import { createTool } from '@mastra/core/tools';
+ *   import { z } from 'zod';
+ *   import { configure } from 'sentinel-oversight';
+ *   import { gated } from 'sentinel-oversight/mastra';
+ *
+ *   configure({ apiKey: process.env.SENTINEL_API_KEY! });
+ *
+ *   const wireTransfer = gated(
+ *     createTool({
+ *       id: 'wire_transfer',
+ *       description: 'Wire USD between accounts',
+ *       inputSchema: z.object({
+ *         amount_usd: z.number(),
+ *         from: z.string(),
+ *         to: z.string(),
+ *       }),
+ *       execute: async ({ context }) => {
+ *         return stripe.transfers.create({ amount: context.amount_usd * 100, destination: context.to });
+ *       },
+ *     }),
+ *     { riskLevel: 'high', approvers: ['ops@acme.com'] }
+ *   );
+ *
+ * Implementation: returns a new tool object with the same shape; the
+ * `execute` function is wrapped so it pauses for approval before calling
+ * the original execute. Sentinel sees the resolved `context` (parsed
+ * input) as the approval `arguments`.
+ *
+ * No hard dependency on @mastra/core — duck-typed against the public
+ * tool shape so we work with any version exposing `id` and `execute`.
+ */
+
+import {
+  ApprovalRejected,
+  type OversightOptions,
+  SentinelClient,
+  getClient,
+} from '../index.js';
+
+export interface MastraGateOptions extends OversightOptions {
+  client?: SentinelClient;
+}
+
+interface MastraToolLike {
+  id?: string;
+  description?: string;
+  execute: (...args: unknown[]) => unknown | Promise<unknown>;
+  [key: string]: unknown;
+}
+
+export function gated<T extends MastraToolLike>(
+  tool: T,
+  opts: MastraGateOptions = {}
+): T {
+  const sentinel = opts.client ?? getClient();
+  const toolName = opts.functionName ?? tool.id ?? 'mastra_tool';
+  const originalExecute = tool.execute.bind(tool);
+
+  const wrappedExecute = async (...args: unknown[]): Promise<unknown> => {
+    // Mastra passes a single object: { context, runtimeContext, ... }.
+    // The `context` field is the parsed inputSchema — that's what we want
+    // shown to the human approver.
+    const first = args[0];
+    const ctx =
+      first &&
+      typeof first === 'object' &&
+      'context' in (first as Record<string, unknown>)
+        ? (first as { context: unknown }).context
+        : first;
+
+    const normalized: Record<string, unknown> =
+      ctx && typeof ctx === 'object' && !Array.isArray(ctx)
+        ? (ctx as Record<string, unknown>)
+        : { input: ctx };
+
+    const approval = await sentinel.createApproval({
+      functionName: toolName,
+      arguments: normalized,
+      riskLevel: opts.riskLevel,
+      approvers: opts.approvers,
+      timeoutSeconds: opts.timeoutSeconds,
+    });
+
+    const decision = await sentinel.waitForDecision(
+      approval.action_id,
+      opts.timeoutSeconds
+    );
+
+    if (decision.decision === 'rejected' || decision.status === 'rejected') {
+      throw new ApprovalRejected(
+        (decision.reason as string) || 'Approval rejected by Sentinel',
+        approval.action_id
+      );
+    }
+
+    return originalExecute(...args);
+  };
+
+  // Return a new object with the same shape (don't mutate the original)
+  return { ...tool, execute: wrappedExecute } as T;
+}
+

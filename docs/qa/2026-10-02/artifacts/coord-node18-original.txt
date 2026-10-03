@@ -1,0 +1,175 @@
+Start: 2026-10-03T01:42:59+00:00
+End: 2026-10-03T01:43:03+00:00
+Command: npm exec --yes --package=node@18.17.1 -- node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs
+Exit: 0
+
+TAP version 13
+# Subtest: approved → original execute runs with original args
+ok 1 - approved → original execute runs with original args
+  ---
+  duration_ms: 6.647417
+  ...
+# Subtest: rejected → throws ApprovalRejected and never runs execute
+ok 2 - rejected → throws ApprovalRejected and never runs execute
+  ---
+  duration_ms: 1.22675
+  ...
+# Subtest: non-object input is wrapped under {input}
+ok 3 - non-object input is wrapped under {input}
+  ---
+  duration_ms: 0.604125
+  ...
+# Subtest: gated does not mutate the original tool
+ok 4 - gated does not mutate the original tool
+  ---
+  duration_ms: 0.21225
+  ...
+# Subtest: gated throws on a tool without execute
+ok 5 - gated throws on a tool without execute
+  ---
+  duration_ms: 0.200084
+  ...
+# Subtest: gatedTools uses record keys as functionName
+ok 6 - gatedTools uses record keys as functionName
+  ---
+  duration_ms: 0.871333
+  ...
+# Subtest: createApproval with idempotencyKey sends Idempotency-Key header
+ok 7 - createApproval with idempotencyKey sends Idempotency-Key header
+  ---
+  duration_ms: 6.764833
+  ...
+# Subtest: createApproval without idempotencyKey omits the header
+ok 8 - createApproval without idempotencyKey omits the header
+  ---
+  duration_ms: 0.353
+  ...
+# Subtest: wrap with function-valued idempotencyKey calls generator and sends header
+ok 9 - wrap with function-valued idempotencyKey calls generator and sends header
+  ---
+  duration_ms: 0.414875
+  ...
+# Subtest: approved → original invoke runs with original args
+ok 10 - approved → original invoke runs with original args
+  ---
+  duration_ms: 6.944667
+  ...
+# Subtest: rejected → throws ApprovalRejected and never runs invoke
+ok 11 - rejected → throws ApprovalRejected and never runs invoke
+  ---
+  duration_ms: 1.220833
+  ...
+# Subtest: functionName overrides the tool name
+ok 12 - functionName overrides the tool name
+  ---
+  duration_ms: 0.496917
+  ...
+# Subtest: non-JSON-object input is wrapped under {input}
+ok 13 - non-JSON-object input is wrapped under {input}
+  ---
+  duration_ms: 0.313542
+  ...
+# Subtest: gated does not mutate the original tool
+ok 14 - gated does not mutate the original tool
+  ---
+  duration_ms: 0.267625
+  ...
+# Subtest: gated throws on a tool without invoke
+ok 15 - gated throws on a tool without invoke
+  ---
+  duration_ms: 0.112708
+  ...
+# Subtest: gatedTools wraps each tool and keeps its own name
+ok 16 - gatedTools wraps each tool and keeps its own name
+  ---
+  duration_ms: 1.1055
+  ...
+# Subtest: listApprovals sends limit, status, cursor and maps envelope to PageResult
+ok 17 - listApprovals sends limit, status, cursor and maps envelope to PageResult
+  ---
+  duration_ms: 6.828834
+  ...
+# Subtest: listApprovals defaults limit to 50 and omits absent params
+ok 18 - listApprovals defaults limit to 50 and omits absent params
+  ---
+  duration_ms: 0.441542
+  ...
+# Subtest: iterApprovals walks pages via nextCursor and yields items in order
+ok 19 - iterApprovals walks pages via nextCursor and yields items in order
+  ---
+  duration_ms: 0.945042
+  ...
+# Subtest: listAuditEventsPage sends action_id/limit/cursor and maps fields
+ok 20 - listAuditEventsPage sends action_id/limit/cursor and maps fields
+  ---
+  duration_ms: 0.523292
+  ...
+# Subtest: plain dict ok
+ok 21 - plain dict ok
+  ---
+  duration_ms: 0.461083
+  ...
+# Subtest: nested dict ok
+ok 22 - nested dict ok
+  ---
+  duration_ms: 0.040666
+  ...
+# Subtest: primitives ok
+ok 23 - primitives ok
+  ---
+  duration_ms: 0.039291
+  ...
+# Subtest: BigInt raises TypeError
+ok 24 - BigInt raises TypeError
+  ---
+  duration_ms: 0.18775
+  ...
+# Subtest: circular reference raises TypeError
+ok 25 - circular reference raises TypeError
+  ---
+  duration_ms: 0.110959
+  ...
+# Subtest: nested unserializable raises TypeError
+ok 26 - nested unserializable raises TypeError
+  ---
+  duration_ms: 0.038667
+  ...
+# Subtest: createApproval rounds a fractional timeout down to the nearest int
+ok 27 - createApproval rounds a fractional timeout down to the nearest int
+  ---
+  duration_ms: 6.366625
+  ...
+# Subtest: createApproval rounds a fractional timeout up to the nearest int
+ok 28 - createApproval rounds a fractional timeout up to the nearest int
+  ---
+  duration_ms: 0.511875
+  ...
+# Subtest: createApproval clamps a sub-second timeout to a minimum of 1
+ok 29 - createApproval clamps a sub-second timeout to a minimum of 1
+  ---
+  duration_ms: 0.494666
+  ...
+# Subtest: createApproval leaves an integer timeout unchanged
+ok 30 - createApproval leaves an integer timeout unchanged
+  ---
+  duration_ms: 0.875917
+  ...
+# Subtest: createApproval coerces the client default timeout to an int
+ok 31 - createApproval coerces the client default timeout to an int
+  ---
+  duration_ms: 0.453375
+  ...
+# Subtest: wrap forwards a fractional timeout as an int on the POST body
+ok 32 - wrap forwards a fractional timeout as an int on the POST body
+  ---
+  duration_ms: 0.627125
+  ...
+1..32
+# tests 32
+# suites 0
+# pass 32
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 54.766792

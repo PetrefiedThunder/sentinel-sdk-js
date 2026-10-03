@@ -1,0 +1,7 @@
+Start: 2026-10-03T01:46:32+00:00
+End: 2026-10-03T01:46:32+00:00
+Command: python3 -
+Exit: 0
+
+node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs
+Restored original Unicode text; explicit test list works without Unix shell glob expansion on supported Node18 Windows consumers.

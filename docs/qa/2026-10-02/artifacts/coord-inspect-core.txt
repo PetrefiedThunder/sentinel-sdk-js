@@ -1,0 +1,579 @@
+Start: 2026-10-03T01:41:22+00:00
+End: 2026-10-03T01:41:22+00:00
+Command: sh -c 'sed -n "260,520p" src/index.ts && cat tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs && cat .github/workflows/test.yml .github/workflows/security.yml .github/workflows/types-fresh.yml && cat src/generated/index.ts src/generated/README.md'
+Exit: 0
+
+    });
+    const page = await this.request<PageEnvelope<ApprovalRecord>>(
+      `/v1/approvals${qs}`
+    );
+    return toPageResult(page);
+  }
+
+  /**
+   * Iterate over all approvals, transparently following nextCursor across
+   * pages until the server reports hasMore=false.
+   */
+  async *iterApprovals(opts?: {
+    status?: string;
+    limit?: number;
+  }): AsyncGenerator<ApprovalRecord> {
+    let cursor: string | undefined;
+    while (true) {
+      const page = await this.listApprovals({ ...opts, cursor });
+      for (const item of page.data) yield item;
+      if (!page.hasMore || page.nextCursor === null) return;
+      cursor = page.nextCursor;
+    }
+  }
+
+  async getApproval(actionId: string): Promise<ApprovalRecord> {
+    return this.request<ApprovalRecord>(
+      `/v1/approvals/${encodeURIComponent(actionId)}`
+    );
+  }
+
+  /**
+   * Block until the approval is decided or the timeout elapses. Uses the
+   * server-side long-poll endpoint when available (single RTT per ~30 s
+   * window via Postgres LISTEN/NOTIFY); falls back to plain polling on older
+   * servers that don't have /wait.
+   */
+  async waitForDecision(
+    actionId: string,
+    timeoutSeconds?: number
+  ): Promise<ApprovalRecord> {
+    const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
+    const deadline = Date.now() + timeout * 1000;
+    while (true) {
+      const remaining = Math.max(
+        1,
+        Math.min(30, Math.floor((deadline - Date.now()) / 1000))
+      );
+      let data: ApprovalRecord;
+      try {
+        data = await this.request<ApprovalRecord>(
+          `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`
+        );
+      } catch (e) {
+        if (e instanceof SentinelAPIError && e.statusCode === 404) {
+          data = await this.getApproval(actionId);
+        } else {
+          throw e;
+        }
+      }
+      const status = data.status ?? data.decision;
+      if (status === 'approved' || status === 'rejected') return data;
+      if (Date.now() >= deadline) {
+        throw new ApprovalTimeout(actionId, timeout);
+      }
+    }
+  }
+
+  // ---- tenant ----
+  async getTenant(): Promise<Record<string, unknown>> {
+    return this.request('/v1/tenants/me');
+  }
+
+  async setDefaultApprovers(
+    approvers: string[]
+  ): Promise<Record<string, unknown>> {
+    return this.request('/v1/tenants/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ default_approvers: approvers }),
+    });
+  }
+
+  // ---- audit ----
+  async listAuditEvents(actionId?: string): Promise<unknown[]> {
+    const qs = actionId
+      ? `?action_id=${encodeURIComponent(actionId)}`
+      : '';
+    return this.request<unknown[]>(`/v1/audit-events${qs}`);
+  }
+
+  /**
+   * List audit events one page at a time (cursor pagination). Unlike the
+   * legacy listAuditEvents(), this always sends `limit` (default 50) so the
+   * server returns the paginated envelope.
+   */
+  async listAuditEventsPage(opts?: {
+    actionId?: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<PageResult<Record<string, unknown>>> {
+    const qs = buildQuery({
+      action_id: opts?.actionId,
+      limit: opts?.limit ?? 50,
+      cursor: opts?.cursor,
+    });
+    const page = await this.request<PageEnvelope<Record<string, unknown>>>(
+      `/v1/audit-events${qs}`
+    );
+    return toPageResult(page);
+  }
+
+  // ---- the decorator surface ----
+  /**
+   * Wrap a function so each call pauses for human approval before executing.
+   *
+   *   const safeRefund = client.wrap(
+   *     { riskLevel: 'critical', approvers: ['alice@acme.com'] },
+   *     async (chargeId: string) => stripe.refunds.create({ charge: chargeId })
+   *   );
+   *
+   *   await safeRefund('ch_abc123');
+   *
+   * On approval the wrapped fn runs with the original arguments and its
+   * return value flows back to the caller. On rejection → ApprovalRejected.
+   * On timeout → ApprovalTimeout.
+   */
+  wrap<Args extends unknown[], R>(
+    opts: OversightOptions,
+    fn: (...args: Args) => Promise<R> | R
+  ): (...args: Args) => Promise<R> {
+    const fnName = opts.functionName || fn.name || 'anonymous';
+    return async (...args: Args): Promise<R> => {
+      // API requires `arguments` be a JSON object (dict). Two ergonomic
+      // shapes: if the caller passes exactly one plain-object arg, that
+      // object IS the arguments (named-style). Otherwise wrap positional
+      // args under `{ args: [...] }`.
+      const isPlainObject =
+        args.length === 1 &&
+        args[0] !== null &&
+        typeof args[0] === 'object' &&
+        !Array.isArray(args[0]);
+      const callArgs: Record<string, unknown> = isPlainObject
+        ? (args[0] as Record<string, unknown>)
+        : { args: args as unknown[] };
+      const idempotencyKey =
+        typeof opts.idempotencyKey === 'function'
+          ? opts.idempotencyKey()
+          : opts.idempotencyKey;
+      const approval = await this.createApproval({
+        functionName: fnName,
+        arguments: callArgs,
+        riskLevel: opts.riskLevel,
+        approvers: opts.approvers,
+        timeoutSeconds: opts.timeoutSeconds,
+        idempotencyKey,
+      });
+      const decision = await this.waitForDecision(
+        approval.action_id,
+        opts.timeoutSeconds
+      );
+      if (decision.decision === 'rejected' || decision.status === 'rejected') {
+        throw new ApprovalRejected(
+          (decision.reason as string) || 'Approval rejected',
+          approval.action_id
+        );
+      }
+      return await fn(...args);
+    };
+  }
+}
+
+// ── Module-level convenience: configure() + oversight() ────────────
+let _defaultClient: SentinelClient | null = null;
+
+export function configure(config: SentinelConfig): SentinelClient {
+  _defaultClient = new SentinelClient(config);
+  return _defaultClient;
+}
+
+export function getClient(): SentinelClient {
+  if (!_defaultClient) {
+    throw new SentinelConfigError(
+      'Call configure({ apiKey: ... }) before using oversight()'
+    );
+  }
+  return _defaultClient;
+}
+
+export function oversight<Args extends unknown[], R>(
+  opts: OversightOptions,
+  fn: (...args: Args) => Promise<R> | R
+): (...args: Args) => Promise<R> {
+  return getClient().wrap(opts, fn);
+}
+// Unit tests for ensureJsonSerializable — mirrors Python 0.1.8 test suite.
+//
+// Run with native node test runner:  node --test tests/serializable.test.mjs
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { ensureJsonSerializable } from '../dist/index.js';
+
+test('plain dict ok', () => {
+  ensureJsonSerializable({ amount: 100, recipient: 'alice' });
+});
+
+test('nested dict ok', () => {
+  ensureJsonSerializable({ meta: { tags: ['a', 'b'], n: 1 } });
+});
+
+test('primitives ok', () => {
+  for (const v of [null, true, 1, 1.5, 'str', [], {}, [1, 2, 3]]) {
+    ensureJsonSerializable(v);
+  }
+});
+
+test('BigInt raises TypeError', () => {
+  assert.throws(() => ensureJsonSerializable(123n), TypeError);
+});
+
+test('circular reference raises TypeError', () => {
+  const a = {};
+  a.self = a;
+  assert.throws(() => ensureJsonSerializable(a), TypeError);
+});
+
+test('nested unserializable raises TypeError', () => {
+  assert.throws(
+    () => ensureJsonSerializable({ ok: 'yes', bad: 123n }),
+    TypeError
+  );
+});
+// Unit tests for Idempotency-Key support — stubs globalThis.fetch.
+//
+// Run with native node test runner:  node --test tests/idempotency.test.mjs
+import { test, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import { SentinelClient } from '../dist/index.js';
+
+const APPROVED = {
+  action_id: 'act_test',
+  status: 'approved',
+  decision: 'approved',
+};
+
+const originalFetch = globalThis.fetch;
+let recorded = [];
+
+beforeEach(() => {
+  recorded = [];
+  globalThis.fetch = async (url, init = {}) => {
+    recorded.push({ url: String(url), init });
+    return new Response(JSON.stringify(APPROVED), { status: 200 });
+  };
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+function makeClient() {
+  return new SentinelClient({ apiKey: 'sk_test', apiUrl: 'https://stub.test' });
+}
+
+test('createApproval with idempotencyKey sends Idempotency-Key header', async () => {
+  const client = makeClient();
+  await client.createApproval({
+    functionName: 'wire',
+    arguments: { amount: 1 },
+    idempotencyKey: 'key-123',
+  });
+  assert.equal(recorded.length, 1);
+  const headers = new Headers(recorded[0].init.headers);
+  assert.equal(headers.get('Idempotency-Key'), 'key-123');
+});
+
+test('createApproval without idempotencyKey omits the header', async () => {
+  const client = makeClient();
+  await client.createApproval({
+    functionName: 'wire',
+    arguments: { amount: 1 },
+  });
+  assert.equal(recorded.length, 1);
+  const headers = new Headers(recorded[0].init.headers);
+  assert.equal(headers.get('Idempotency-Key'), null);
+});
+
+test('wrap with function-valued idempotencyKey calls generator and sends header', async () => {
+  const client = makeClient();
+  let calls = 0;
+  const wrapped = client.wrap(
+    {
+      functionName: 'wire',
+      idempotencyKey: () => {
+        calls += 1;
+        return `gen-key-${calls}`;
+      },
+    },
+    async (amount) => amount * 2
+  );
+  const result = await wrapped(21);
+  assert.equal(result, 42);
+  assert.equal(calls, 1);
+  const create = recorded.find(
+    (r) => r.url.endsWith('/v1/approvals') && r.init.method === 'POST'
+  );
+  assert.ok(create, 'expected a POST /v1/approvals call');
+  const headers = new Headers(create.init.headers);
+  assert.equal(headers.get('Idempotency-Key'), 'gen-key-1');
+});
+// Unit tests for timeout_seconds integer coercion — stubs globalThis.fetch.
+//
+// The live API types ApprovalCreate.timeout_seconds as `integer` and returns
+// HTTP 422 on a fractional value. The SDK must round to a whole number of
+// seconds before sending. Run: node --test tests/timeout.test.mjs
+import { test, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import { SentinelClient } from '../dist/index.js';
+
+const APPROVED = {
+  action_id: 'act_test',
+  status: 'approved',
+  decision: 'approved',
+};
+
+const originalFetch = globalThis.fetch;
+let recorded = [];
+
+beforeEach(() => {
+  recorded = [];
+  globalThis.fetch = async (url, init = {}) => {
+    recorded.push({ url: String(url), init });
+    return new Response(JSON.stringify(APPROVED), { status: 200 });
+  };
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+function makeClient(config = {}) {
+  return new SentinelClient({
+    apiKey: 'sk_test',
+    apiUrl: 'https://stub.test',
+    ...config,
+  });
+}
+
+function createBody(rec) {
+  return JSON.parse(rec.init.body);
+}
+
+test('createApproval rounds a fractional timeout down to the nearest int', async () => {
+  const client = makeClient();
+  await client.createApproval({
+    functionName: 'wire',
+    arguments: { amount: 1 },
+    timeoutSeconds: 30.4,
+  });
+  const body = createBody(recorded[0]);
+  assert.equal(body.timeout_seconds, 30);
+  assert.equal(Number.isInteger(body.timeout_seconds), true);
+});
+
+test('createApproval rounds a fractional timeout up to the nearest int', async () => {
+  const client = makeClient();
+  await client.createApproval({
+    functionName: 'wire',
+    arguments: { amount: 1 },
+    timeoutSeconds: 30.5,
+  });
+  const body = createBody(recorded[0]);
+  assert.equal(body.timeout_seconds, 31);
+});
+
+test('createApproval clamps a sub-second timeout to a minimum of 1', async () => {
+  const client = makeClient();
+  await client.createApproval({
+    functionName: 'wire',
+    arguments: { amount: 1 },
+    timeoutSeconds: 0.2,
+  });
+  const body = createBody(recorded[0]);
+  assert.equal(body.timeout_seconds, 1);
+});
+
+test('createApproval leaves an integer timeout unchanged', async () => {
+  const client = makeClient();
+  await client.createApproval({
+    functionName: 'wire',
+    arguments: { amount: 1 },
+    timeoutSeconds: 120,
+  });
+  assert.equal(createBody(recorded[0]).timeout_seconds, 120);
+});
+
+test('createApproval coerces the client default timeout to an int', async () => {
+  const client = makeClient({ timeoutSeconds: 45.9 });
+  await client.createApproval({
+    functionName: 'wire',
+    arguments: { amount: 1 },
+  });
+  const body = createBody(recorded[0]);
+  assert.equal(body.timeout_seconds, 46);
+  assert.equal(Number.isInteger(body.timeout_seconds), true);
+});
+
+test('wrap forwards a fractional timeout as an int on the POST body', async () => {
+  const client = makeClient();
+  const wrapped = client.wrap(
+    { functionName: 'wire', timeoutSeconds: 90.7 },
+    async (amount) => amount * 2
+  );
+  const result = await wrapped(21);
+  assert.equal(result, 42);
+  const create = recorded.find(
+    (r) => r.url.endsWith('/v1/approvals') && r.init.method === 'POST'
+  );
+  assert.ok(create, 'expected a POST /v1/approvals call');
+  assert.equal(createBody(create).timeout_seconds, 91);
+});
+name: test
+
+# Build + unit tests on every pull request and push to main. Previously the
+# suite ran only on tag-publish and push-to-main (release.yml), so PRs could
+# merge with failing tests; this gates them before merge. Tests import from
+# dist/, so the build must run first.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+  typecheck:
+    # Strict-tsc lint gate. The repo has no ESLint config and relies on
+    # tsconfig `strict` + `noUncheckedIndexedAccess`, so `tsc --noEmit` is
+    # the minimal type-check parity gate matching the py/go SDK lint jobs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm run typecheck
+name: security
+
+# Runs on EVERY pull request (no path filter) + pushes to main, so the secret
+# scan and dependency audit gate all changes — not just ones touching certain
+# paths. (The job previously lived in the path-filtered types-fresh.yml.)
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # gitleaks needs full history to scan past commits
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - run: npm ci
+
+      # Dependency advisory scan. Day-one policy: continue-on-error so a newly
+      # disclosed advisory in an existing/transitive dep does not red-line main.
+      - name: npm audit (dependency advisories)
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+      # Secret scan (hard gate). Run the gitleaks BINARY, not gitleaks-action:
+      # the action calls the GitHub API to post PR summaries and fails with
+      # "Resource not accessible by integration" without a permissions block.
+      # gitleaks auto-detects .gitleaks.toml at the repo root.
+      - name: gitleaks (secret scan)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar -xz -C /tmp gitleaks
+          /tmp/gitleaks git . --redact --no-banner
+name: types-fresh
+
+# Verify the generated OpenAPI types match what the live API exposes.
+# Catches forgotten `npm run gen:types` before customers hit a runtime
+# mismatch.
+
+on:
+  pull_request:
+    paths:
+      - 'src/generated/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/types-fresh.yml'
+  schedule:
+    # Daily 13:00 UTC catches "API shipped a field, SDK didn't notice"
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Regenerate types
+        run: npm run gen:types
+      - name: Diff
+        run: |
+          if ! git diff --exit-code src/generated/api.d.ts; then
+            echo "::error::Generated types are stale. Run 'npm run gen:types' locally and commit the diff."
+            exit 1
+          fi
+/**
+ * Generated types from the Sentinel API's OpenAPI schema.
+ *
+ * Do NOT edit `api.d.ts` by hand — it's regenerated by `npm run gen:types`.
+ * This file re-exports the most useful aliases so callers don't have to
+ * type the long `paths[...]["post"]` chains.
+ */
+export type { paths, components, operations } from './api.js';
+import type { components } from './api.js';
+
+/** All schemas declared in the API's OpenAPI spec. */
+export type Schemas = components['schemas'];
+
+/** Top-level resource shapes. */
+export type ApprovalRecord = Schemas['ApprovalCreate'];
+export type TenantSignupRequest = Schemas['TenantSignup'];
+
+// Add more aliases as we expand surface area. The point is: hand-rolled
+// duplicate types in src/index.ts should be migrated to references from
+// this module, so a backend schema change shows up as a TS compile error.
+# Generated API types
+
+`api.d.ts` is **auto-generated** from the Sentinel API's OpenAPI schema (`https://api.pauseapi.app/openapi.json`). Do not edit it by hand.
+
+## Regenerate
+
+```bash
+npm run gen:types
+```
+
+That runs `openapi-typescript` against the live API. Commit the diff if anything changed.
+
+## How to use
+
+```ts
+import type { Schemas } from 'sentinel-oversight/dist/generated/index.js';
+
+type Approval = Schemas['ApprovalCreate'];
+```
+
+Or pull the wider `paths` / `operations` shapes if you need request/response types for a specific endpoint.
+
+## Why
+
+The hand-rolled types in `src/index.ts` work, but drift when the API changes. The generated module is the source of truth — when the API adds a field, you get a TypeScript compile error here, not a runtime bug at the customer.
+
+Future: migrate the hand-rolled types in `src/index.ts` to references off `Schemas`. Tracked separately.

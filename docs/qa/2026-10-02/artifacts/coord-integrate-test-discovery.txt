@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:45:04+00:00
+End: 2026-10-03T01:45:04+00:00
+Command: python3 -
+Exit: 0
+
+Updated test-only script to discover existing and added *.test.mjs; live smoke/demo excluded. No dependencies or product code changed.

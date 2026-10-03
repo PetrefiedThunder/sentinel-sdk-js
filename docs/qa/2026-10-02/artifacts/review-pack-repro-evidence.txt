@@ -1,0 +1,164 @@
+Start: 2026-10-03T01:46:49+00:00
+End: 2026-10-03T01:46:49+00:00
+Command: python3 -c 'from pathlib import Path; root=Path("docs/qa/2026-10-02/artifacts"); matches=[p for p in root.glob("frontend-*.txt") if any(x in p.name for x in ["clean-source", "git-consumer", "shallow"])]; [(print("FILE "+str(p)),print(p.read_text())) for p in sorted(matches)]'
+Exit: 0
+
+FILE docs/qa/2026-10-02/artifacts/frontend-clean-source-archive.txt
+Start: 2026-10-03T01:44:40+00:00
+End: 2026-10-03T01:44:40+00:00
+Command: git archive --format=tar --output=/private/tmp/sentinel-qa-clean-source.tar HEAD
+Exit: 0
+
+
+FILE docs/qa/2026-10-02/artifacts/frontend-clean-source-consumer.txt
+Start: 2026-10-03T01:44:50+00:00
+End: 2026-10-03T01:44:50+00:00
+Command: npm install --prefix /private/tmp/sentinel-qa-clean-consumer --offline --ignore-scripts --no-audit --no-fund /private/tmp/sentinel-oversight-0.1.0.tgz
+Exit: 0
+
+
+added 1 package in 144ms
+
+FILE docs/qa/2026-10-02/artifacts/frontend-clean-source-extract.txt
+Start: 2026-10-03T01:44:40+00:00
+End: 2026-10-03T01:44:40+00:00
+Command: python3 -c 'import tarfile; from pathlib import Path; p=Path("/private/tmp/sentinel-qa-clean-source"); p.mkdir(exist_ok=True); tarfile.open("/private/tmp/sentinel-qa-clean-source.tar").extractall(p, filter="data"); print("Clean tracked source extracted; dist exists:", (p/"dist").exists())'
+Exit: 0
+
+Clean tracked source extracted; dist exists: False
+
+FILE docs/qa/2026-10-02/artifacts/frontend-clean-source-import.txt
+Start: 2026-10-03T01:44:50+00:00
+End: 2026-10-03T01:44:50+00:00
+Command: node --input-type=module -e 'import("/private/tmp/sentinel-qa-clean-consumer/node_modules/sentinel-oversight/dist/index.js").then(() => console.log("package entry imported"))'
+Exit: 1
+
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/sentinel-qa-clean-consumer/node_modules/sentinel-oversight/dist/index.js' imported from /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/[eval1]
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+    at #resolve (node:internal/modules/esm/loader:690:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+    at node:internal/modules/esm/loader:639:32
+    at TracingChannel.tracePromise (node:diagnostics_channel:538:22) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///private/tmp/sentinel-qa-clean-consumer/node_modules/sentinel-oversight/dist/index.js'
+}
+
+Node.js v26.7.0
+
+FILE docs/qa/2026-10-02/artifacts/frontend-clean-source-pack.txt
+Start: 2026-10-03T01:44:40+00:00
+End: 2026-10-03T01:44:41+00:00
+Command: npm pack /private/tmp/sentinel-qa-clean-source --offline --json --pack-destination /private/tmp
+Exit: 0
+
+[
+  {
+    "id": "sentinel-oversight@0.1.0",
+    "name": "sentinel-oversight",
+    "version": "0.1.0",
+    "size": 3996,
+    "unpackedSize": 9297,
+    "shasum": "880e45f20cdad1de17fa6e62b18ae1b04685d9f8",
+    "integrity": "sha512-OU0k1iJyoRv5Im7dXYOcRk7oMk2y3YRNYlV1VW0rnIcJ7nCHQamauZazjpUeQasPD4Qttwr1gPzqDHB8ZaKfOw==",
+    "filename": "sentinel-oversight-0.1.0.tgz",
+    "files": [
+      {
+        "path": "LICENSE",
+        "size": 1072,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 5561,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 2664,
+        "mode": 420
+      }
+    ],
+    "entryCount": 3,
+    "bundled": []
+  }
+]
+
+FILE docs/qa/2026-10-02/artifacts/frontend-git-consumer-import.txt
+Start: 2026-10-03T01:45:21+00:00
+End: 2026-10-03T01:45:21+00:00
+Command: node /private/tmp/sentinel-qa-git-consumer/consumer.mjs
+Exit: 1
+
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/sentinel-qa-git-consumer/node_modules/sentinel-oversight/dist/index.js' imported from /private/tmp/sentinel-qa-git-consumer/consumer.mjs
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:708:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:728:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:766:56)
+    at #resolve (node:internal/modules/esm/loader:690:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:610:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:277:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:389:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///private/tmp/sentinel-qa-git-consumer/node_modules/sentinel-oversight/dist/index.js'
+}
+
+Node.js v26.7.0
+
+FILE docs/qa/2026-10-02/artifacts/frontend-git-consumer-script.txt
+Start: 2026-10-03T01:45:21+00:00
+End: 2026-10-03T01:45:21+00:00
+Command: python3 -c 'from pathlib import Path; p=Path("/private/tmp/sentinel-qa-git-consumer/consumer.mjs"); p.write_text("import { SentinelClient } from \"sentinel-oversight\";\nconsole.log(typeof SentinelClient);\n"); print("Wrote package-name import consumer at", p)'
+Exit: 0
+
+Wrote package-name import consumer at /private/tmp/sentinel-qa-git-consumer/consumer.mjs
+
+FILE docs/qa/2026-10-02/artifacts/frontend-local-git-consumer.txt
+Start: 2026-10-03T01:44:58+00:00
+End: 2026-10-03T01:44:59+00:00
+Command: npm install --prefix /private/tmp/sentinel-qa-git-consumer --no-audit --no-fund 'git+file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js#717392b'
+Exit: 128
+
+npm error code 128
+npm error An unknown git error occurred
+npm error command git --no-replace-objects clone --mirror -q file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js /private/tmp/sentinel-qa-npm-cache/_cacache/tmp/git-clones7QRmh/.git
+npm error remote: warning: lazy fetching disabled; some objects may not be available        
+npm error remote: fatal: could not fetch 16ca6e437f8f472ecdc3fd2ee19aca990a4bed94 from promisor remote        
+npm error error: git upload-pack: git-pack-objects died with error.
+npm error fatal: git upload-pack: aborting due to possible repository corruption on the remote side.
+npm error remote: aborting due to possible repository corruption on the remote side.
+npm error fatal: early EOF
+npm error fatal: fetch-pack: invalid index-pack output
+npm error A complete log of this run can be found in: /private/tmp/sentinel-qa-npm-cache/_logs/2026-10-03T01_44_59_036Z-debug-0.log
+
+FILE docs/qa/2026-10-02/artifacts/frontend-shallow-git-consumer.txt
+Start: 2026-10-03T01:45:14+00:00
+End: 2026-10-03T01:45:16+00:00
+Command: npm install --prefix /private/tmp/sentinel-qa-git-consumer --no-audit --no-fund 'git+file:///private/tmp/sentinel-qa-local-shallow-source#717392b'
+Exit: 0
+
+
+added 1 package in 2s
+
+FILE docs/qa/2026-10-02/artifacts/frontend-shallow-source.txt
+Start: 2026-10-03T01:45:10+00:00
+End: 2026-10-03T01:45:10+00:00
+Command: git clone --depth 1 --single-branch --branch qa/2026-10-02-sweep file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js /private/tmp/sentinel-qa-local-shallow-source
+Exit: 0
+
+Cloning into '/private/tmp/sentinel-qa-local-shallow-source'...
+

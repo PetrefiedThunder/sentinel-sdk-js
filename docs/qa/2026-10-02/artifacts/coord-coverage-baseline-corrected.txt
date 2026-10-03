@@ -1,0 +1,57 @@
+Start: 2026-10-03T01:42:37+00:00
+End: 2026-10-03T01:42:37+00:00
+Command: /private/tmp/sentinel-qa-tools/node_modules/.bin/c8 --all --src dist --include 'dist/**/*.js' --exclude 'dist/generated/**' --reporter=text --reporter=json-summary --reporter=json --reports-dir docs/qa/2026-10-02/artifacts/coverage-before-valid --temp-directory /private/tmp/sentinel-qa-v8-before-valid node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs
+Exit: 0
+
+✔ approved → original execute runs with original args (13.228667ms)
+✔ rejected → throws ApprovalRejected and never runs execute (0.892334ms)
+✔ non-object input is wrapped under {input} (0.320292ms)
+✔ gated does not mutate the original tool (0.137708ms)
+✔ gated throws on a tool without execute (0.1365ms)
+✔ gatedTools uses record keys as functionName (0.382625ms)
+✔ createApproval with idempotencyKey sends Idempotency-Key header (12.763916ms)
+✔ createApproval without idempotencyKey omits the header (0.215625ms)
+✔ wrap with function-valued idempotencyKey calls generator and sends header (0.688917ms)
+✔ approved → original invoke runs with original args (13.130375ms)
+✔ rejected → throws ApprovalRejected and never runs invoke (1.137833ms)
+✔ functionName overrides the tool name (0.31425ms)
+✔ non-JSON-object input is wrapped under {input} (0.259125ms)
+✔ gated does not mutate the original tool (0.112792ms)
+✔ gated throws on a tool without invoke (0.128834ms)
+✔ gatedTools wraps each tool and keeps its own name (0.423458ms)
+✔ listApprovals sends limit, status, cursor and maps envelope to PageResult (13.052416ms)
+✔ listApprovals defaults limit to 50 and omits absent params (0.253583ms)
+✔ iterApprovals walks pages via nextCursor and yields items in order (0.845917ms)
+✔ listAuditEventsPage sends action_id/limit/cursor and maps fields (0.217625ms)
+✔ plain dict ok (0.449875ms)
+✔ nested dict ok (0.056209ms)
+✔ primitives ok (0.053167ms)
+✔ BigInt raises TypeError (0.2105ms)
+✔ circular reference raises TypeError (3.427209ms)
+✔ nested unserializable raises TypeError (0.067375ms)
+✔ createApproval rounds a fractional timeout down to the nearest int (12.679792ms)
+✔ createApproval rounds a fractional timeout up to the nearest int (0.23925ms)
+✔ createApproval clamps a sub-second timeout to a minimum of 1 (0.59825ms)
+✔ createApproval leaves an integer timeout unchanged (0.149875ms)
+✔ createApproval coerces the client default timeout to an int (0.166583ms)
+✔ wrap forwards a fractional timeout as an int on the POST body (0.36475ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73.55875
+-------------------|---------|----------|---------|---------|---------------------------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                     
+-------------------|---------|----------|---------|---------|---------------------------------------
+All files          |   67.01 |    70.65 |   62.16 |   67.01 |                                       
+ src               |   82.52 |    71.69 |   57.14 |   82.52 |                                       
+  index.ts         |   82.52 |    71.69 |   57.14 |   82.52 | ...47,420-424,434-436,439-445,448-452 
+ src/adapters      |   53.39 |    69.23 |   77.77 |   53.39 |                                       
+  ai-sdk.ts        |     100 |       80 |     100 |     100 | 74-75,103                             
+  langchain.ts     |       0 |        0 |       0 |       0 | 1-131                                 
+  mastra.ts        |       0 |        0 |       0 |       0 | 1-104                                 
+  openai-agents.ts |   96.66 |    68.18 |     100 |   96.66 | 126,132-135                           
+-------------------|---------|----------|---------|---------|---------------------------------------

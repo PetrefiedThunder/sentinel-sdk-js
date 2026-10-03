@@ -1,0 +1,5 @@
+Start: 2026-10-03T01:45:28+00:00
+End: 2026-10-03T01:45:28+00:00
+Command: node --check tests/qa/ux-docs.test.mjs
+Exit: 0
+

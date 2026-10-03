@@ -1,0 +1,15 @@
+Start: 2026-10-03T01:45:46+00:00
+End: 2026-10-03T01:45:47+00:00
+Command: node node_modules/typescript/bin/tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext /private/tmp/sentinel-qa-tools/frontend-framework-types.mts
+Exit: 2
+
+../../../../../private/tmp/sentinel-qa-tools/frontend-framework-types.mts(20,8): error TS2345: Argument of type '({ deferLoading?: boolean | undefined; title?: string | undefined; providerOptions?: SharedV4ProviderOptions | undefined; metadata?: JSONObject | undefined; ... 6 more ...; toModelOutput?: ((options: { ...; }) => ToolResultOutput | PromiseLike<...>) | undefined; } & { ...; } & { ...; } & { ...; } & { ...; }) | ({ .....' is not assignable to parameter of type 'AiSdkToolLike'.
+  Type '{ deferLoading?: boolean | undefined; title?: string | undefined; providerOptions?: SharedV4ProviderOptions | undefined; metadata?: JSONObject | undefined; ... 6 more ...; toModelOutput?: ((options: { ...; }) => ToolResultOutput | PromiseLike<...>) | undefined; } & { ...; } & { ...; } & { ...; } & { ...; }' is not assignable to type 'AiSdkToolLike'.
+    Types of property 'description' are incompatible.
+      Type 'string | ((options: { context: NoInfer<Context>; experimental_sandbox?: SandboxSession | undefined; }) => string) | undefined' is not assignable to type 'string | undefined'.
+        Type '(options: { context: NoInfer<Context>; experimental_sandbox?: SandboxSession | undefined; }) => string' is not assignable to type 'string'.
+../../../../../private/tmp/sentinel-qa-tools/frontend-framework-types.mts(21,12): error TS2345: Argument of type 'FunctionTool<unknown, ZodObject<{ amount: ZodNumber; }, $strip>, string>' is not assignable to parameter of type 'FunctionToolLike'.
+  Types of property 'invoke' are incompatible.
+    Type '(runContext: RunContext<unknown>, input: string, details?: ToolCallDetails | undefined) => Promise<string>' is not assignable to type '(...args: unknown[]) => unknown'.
+      Types of parameters 'runContext' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'RunContext<unknown>'.

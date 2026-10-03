@@ -1,0 +1,107 @@
+Start: 2026-10-03T01:47:23+00:00
+End: 2026-10-03T01:47:23+00:00
+Command: sh -c 'cat docs/qa/2026-10-02/BACKEND-REPORT.md && test ! -f docs/qa/2026-10-02/FRONTEND-REPORT.md || cat docs/qa/2026-10-02/FRONTEND-REPORT.md'
+Exit: 0
+
+# Backend QA — SDK core transport and approval safety
+
+PR: opened by orchestrator
+CI status: pending at time of writing
+
+The SDK core has three High, one Medium and one Low finding. No product code changed. Thirty added core tests finish with **24 pass, 0 fail, 6 TODO**; all six TODOs actually fail their intended safety assertion and correspond to five findings. The separate loopback test passes using an ephemeral `127.0.0.1` HTTP server and synthetic authorization values. No production service, real credential, external database or billing system was contacted.
+
+## Findings
+
+The repository must first be built with `npm run build`. Each reproduction below runs from the repository root; TODO tests intentionally exit successfully while preserving assertion evidence. The complete verification command is `node --test tests/qa/backend-core.test.mjs`. See [final pass output](artifacts/backend-core-final-pass.txt) and [source/test line inventory](artifacts/backend-final-source-lines.txt).
+
+| ID | Severity | Group | Title | Exact reproduction | Expected | Actual | Evidence | Suggested fix |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BE-001 | High | Backend | Caller mutation changes the action after approval creation | Run `node --test --test-name-pattern='BE-001:' tests/qa/backend-core.test.mjs`. The test starts a wrapped call with nested transfer amount `1`/recipient `qa-reviewed`, blocks the decision response, changes that same object's amount to `999`/recipient `qa-changed`, then returns approved. | Execute only the reviewed payload, or reject if the payload changed. | Approval creation sends the first values; the protected function receives the changed values. | `src/index.ts:400`, `src/index.ts:407`, `src/index.ts:425`; test `BE-001: mutation during approval wait must not change the executed intent` at `tests/qa/backend-core.test.mjs:192`; assertion diff in final output. | Capture a supported immutable argument snapshot before sending approval, and use that exact snapshot for execution; alternatively reject changed arguments before any side effect. Define compatibility for non-JSON objects explicitly. |
+| BE-002 | High | Backend | Approval deadline neither bounds network wait nor blocks late execution | Run `node --test --test-name-pattern='BE-002:' tests/qa/backend-core.test.mjs`. One test advances the clock two seconds during a one-second decision wait and returns approved. The second leaves mocked fetch unresolved, waits 80 ms for a 10 ms local timeout, then releases the mock for cleanup. | Timeout with `ApprovalTimeout`; do not execute after the allowed local window. | The late response executes once. The stalled request remains pending past its deadline. | `src/index.ts:193`, `src/index.ts:300`, `src/index.ts:320`; tests at `tests/qa/backend-core.test.mjs:213` and `:227`; final output shows `1 !== 0` and `still-pending` instead of `timeout`. | Enforce a single deadline across creation/polling, pass an abort signal to each fetch, and check expiry before accepting a terminal response or executing the function. Avoid relying solely on the server's wait query. |
+| BE-003 | High | Backend | Lossy JSON conversion permits execution with unreviewed arguments | Run `node --test --test-name-pattern='BE-003:' tests/qa/backend-core.test.mjs`. Submit objects containing NaN, Infinity, undefined, a Set, a Map, or a function and return approved. | Reject unsupported values before network I/O/execution, or execute the exact supported JSON representation submitted for review. | All six inputs execute. NaN/Infinity become null, undefined/functions disappear, and Set/Map become empty objects in the reviewed JSON. | `src/index.ts:118`, `src/index.ts:228`, `src/index.ts:234`, `src/index.ts:425`; test at `tests/qa/backend-core.test.mjs:241`; six accepted cases in final output. | Validate plain JSON values recursively (finite numbers, supported primitives, arrays and plain objects), reject unsupported/lossy values, and align serialization with the immutable snapshot used for execution. |
+| BE-004 | Medium | Backend | Legacy-server fallback polls continuously without pacing | Run `node --test --test-name-pattern='BE-004:' tests/qa/backend-core.test.mjs`. Freeze the clock, mock 404 for `/wait` and pending for direct GET, drain 200 microtasks without yielding to timers, and supply a terminal sixth response for cleanup. | Bounded, paced fallback requests; no repeated probe of a known unsupported wait route within the same wait. | Six requests run before any timer/event-loop turn. An earlier timed exploratory run also made 44 requests in approximately 102 ms; each loop retries both the unsupported wait endpoint and direct GET. | `src/index.ts:302`, `src/index.ts:309`, `src/index.ts:313`, `src/index.ts:324`; test at `tests/qa/backend-core.test.mjs:259`; final output. | Remember fallback mode for that wait call and add a deadline-aware bounded polling interval/backoff between pending responses. |
+| BE-005 | Low | Backend | Plain-text HTTP errors lose their diagnostic body | Run `node --test --test-name-pattern='BE-005:' tests/qa/backend-core.test.mjs`. Return a real `Response` with status 502 and text `Synthetic gateway unavailable`, then call `getTenant`. | A `SentinelAPIError` containing status 502 and useful bounded response detail. | Error message is only `[502] ` because failed JSON parsing already consumed the body. | `src/index.ts:205`, `src/index.ts:210`; test at `tests/qa/backend-core.test.mjs:327`; final output. | Read response text once and parse JSON from that text when appropriate, retaining a bounded text fallback. |
+
+## Auth, permissions and concurrency matrix
+
+| Case | Result | Scope of proof |
+| --- | --- | --- |
+| Empty API key | Constructor rejects; zero requests | Client configuration only |
+| Synthetic 401/403 | `SentinelAPIError`; zero protected executions and no retries | Mocked transport; real 403 additionally exercised on loopback |
+| Synthetic 409/422/429/500/503 | Error is surfaced; protected action does not run | No automatic replay of non-idempotent work |
+| Two concurrent clients | Each request retains its own synthetic Authorization header | Mocked clients plus allowed/denied clients on loopback |
+| Global reconfiguration after wrapper creation | Previously created wrapper retains original client | Prevents accidental rebinding to the latest global client |
+| Explicit rejection | Blocks execution with preserved action ID/reason | Includes empty reason fallback and contradictory approved/rejected response where rejection wins |
+| Pending past deadline | Correctly throws `ApprovalTimeout` when a pending response returns | Does not resolve the late/stalled-response defects in BE-002 |
+| Same idempotency key, concurrent wrapped calls | Both functions execute; requests carry creation idempotency semantics | README promises deduplication of approval creation, not exactly-once side effects. No extra finding counted; applications must own side-effect idempotency. |
+| Cross-tenant server authorization, approver identity and token replay | Not tested | Requires server code or an authorized test service; SDK header tests cannot establish server enforcement |
+
+## Contract and input testing
+
+- The real HTTP test validates POST `/v1/approvals`, its object arguments, function/risk/approver fields, integer timeout coercion, auth/content-type/user-agent/idempotency headers, and subsequent GET `/v1/approvals/{action_id}/wait`. These match the checked-in request contract at `src/generated/api.d.ts:504` and wait route at `:925`.
+- The checked-in wait response is typed `unknown` at `src/generated/api.d.ts:947`. This pass does not claim JSON-schema response validation or freshness against a live OpenAPI document. The task forbids fetching production schemas.
+- Sixty-four deterministic seeded plain-JSON cases (seed `0x53454e54`) preserve reviewed/executed argument equality. BigInt and circular objects fail before I/O. Special-character path/query inputs remain encoded data in the tested classes.
+- Existing timeout tests cover normal rounding boundaries. This pass concentrates on deadline enforcement, unsupported/lossy argument classes, malformed JSON, transport errors, structured error bodies, rejection and concurrent configuration.
+- The 404 fallback has a passing terminal-response control, separating its working compatibility path from the resource-consumption defect.
+
+## OWASP API risk review at the SDK boundary
+
+| Risk area | Review result |
+| --- | --- |
+| API1: Object-level authorization | Action IDs are encoded; authorization is server-owned and unverified. No claim of server tenant isolation. |
+| API2: Authentication | Empty key rejected; per-client headers and reconfiguration isolation verified with synthetic credentials. No token issuance, rotation or real-key validation performed. |
+| API3: Property-level authorization | Approval response schema is not runtime-validated; permissions and allowed response fields are server-owned. Lossy approval intent is covered by BE-003. |
+| API4: Resource consumption | Confirmed unbounded network wait and unpaced fallback (BE-002, BE-004). No load test or production traffic generated. |
+| API5: Function-level authorization | SDK always sends its configured bearer credential; synthetic denial fails closed. Real role/permission enforcement remains untested. |
+| API6: Sensitive business flows | Approval/execution argument consistency fails under mutation and lossy serialization (BE-001, BE-003). Wrapped side effects require their own idempotency. |
+| API7: Server-side request forgery | Base URL is explicit caller configuration; no server is implemented here. No arbitrary external URL probes or SSRF testing performed. |
+| API8: Security misconfiguration | Default API URL is HTTPS by source inspection; only explicitly configured loopback HTTP used in tests. Deployment, credential stores and production configuration are outside scope. |
+| API9: Inventory management | Core approval/tenant/audit methods mapped against checked-in paths; generated response contracts have limited detail. Live schema drift unverified. |
+| API10: Unsafe consumption | Malformed JSON and non-success status fail closed; plain-text error context is lost (BE-005). Runtime response shape/identity validation and malicious-server behavior are not exhaustively tested. |
+
+## Coverage, constraints and follow-up
+
+The coordinator owns baseline and final all-source coverage in [COVERAGE.md](COVERAGE.md). This pass adds coverage for constructors, rejection/timeout failures, transport exceptions, JSON/text error paths, fallback polling, tenant methods, argument mutation and client context. Its six TODOs increase executed coverage but are unresolved defects, not passing acceptance tests.
+
+Remaining limits: no production API or notification channel, tenant/approver authorization backend, durable audit hash verification, true cross-process side-effect deduplication, workload-scale concurrency, browser application, or full framework runtime. Dependency vulnerability auditing and package/types testing belong to the Frontend substitute pass. No UI exists; screenshots and WCAG checks are not applicable to this pass.
+
+Recommended order: BE-001 and BE-003 together (establish exact approved intent), BE-002 (enforce deadlines), BE-004 (pace fallback), then BE-005 (restore diagnostics). Re-run the TODO assertions as normal tests when fixes are made.
+# Frontend replacement pass — package and framework consumers
+
+PR: opened by orchestrator
+CI status: pending at time of writing
+
+This SDK has no UI, dev server or browser-delivered product. Package installation, public TypeScript declarations, framework tool protocols and execution safety replace frontend/browser QA. Browser rendering, Chromium/Firefox/WebKit, Lighthouse, axe and screenshots are not applicable. All execution used synthetic arguments, client doubles and local tool counters; no model/provider/API calls were made.
+
+## Results
+
+Four findings in this pass: **Critical=1, High=1, Medium=2, Low=0**. The coordinator separately records development-dependency audit results; they are not included in these four findings.
+
+- `frontend-adapters.test.mjs`: 30 tests, 21 pass, 9 expected failures/TODO, exit 0. It covers all four adapters, success, rejection, timeout, transport failure, argument/option forwarding, tool naming, LangChain allow/deny lists, Mastra binding and strict consumers.
+- `frontend-langchain.integration.test.mjs` against real `@langchain/core@1.2.14`: 8 tests, 3 pass, 5 expected failures/TODO, exit 0. Without the optional framework package the eight tests explicitly skip; the committed artifact proves the real integration was run separately.
+- Real `ai@7.0.127` and `@openai/agents@0.18.0` factories: both JS wrappers execute once on approval and execute zero times on rejection. Real TypeScript tool types fail compilation (FE-002), while the strict consumer using compatible broad callback parameters compiles.
+- A clean source package contains only three files and fails to import. A local Git dependency installation reproduces the same failure (FE-004), so this is not merely an inference from the scripts.
+- Build, project typecheck, built-package verification, minimum supported Node and dependency audit are coordinated centrally and cited in the consolidated report. Core safety issues shared by adapters are recorded in Backend findings rather than counted twice.
+
+## Findings
+
+| ID | Severity | Group | Title | Exact reproduction | Expected vs actual | Evidence | Suggested fix |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| FE-001 | Critical | Frontend / framework integration | LangChain executes tools without consulting approval; enabling callbacks alone still ignores denial | After build, run `env SENTINEL_QA_LANGCHAIN_ROOT=/private/tmp/sentinel-qa-tools/node_modules/@langchain/core node --test tests/qa/frontend-langchain.integration.test.mjs` with the pinned framework installed at that explicit path. The test supplies `new SentinelCallbackHandler({client})` to a real `DynamicTool.invoke(...,{callbacks:[handler]})` and counts approvals/executions. | Expected: one approval, rejection/timeout block tool execution. Actual: `ignoreAgent=true` makes LangChain skip `handleToolStart`; tool executes with **zero approval calls**. A test-only override of `ignoreAgent=false` reaches approval, but rejection/timeout are swallowed because `raiseError` is absent. Test-only overrides of both flags block execution and pass all controls. | `src/adapters/langchain.ts:58-65,99-105`; `tests/qa/frontend-langchain.integration.test.mjs`; [real integration output](artifacts/frontend-langchain-integration.txt); [framework callback implementation](artifacts/frontend-langchain-manager-read.txt) (installed manager lines 399-410). | Set `ignoreAgent=false` and `raiseError=true`, retain awaiting behavior, and make real framework approval/rejection/timeout tests a supported-version CI check. No product fix was applied. |
+| FE-002 | Medium | Frontend / TypeScript consumer | Adapter declarations reject ordinary typed framework tools | Run `node node_modules/typescript/bin/tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext tests/qa/frontend-consumer.mts`; compare the same command with `frontend-consumer-control.mts`. Actual-framework fixture `frontend-framework-types.mts` was copied into the isolated temp consumer and compiled with the same options. | Expected: typed `execute({amount}: {amount:number})` and `invoke(context,input:string)` are accepted and their signatures retained. Actual: all three structural wrapper examples fail TS2322 because `unknown[]` requires callbacks to accept every argument type. The broad-parameter control compiles. Real Agents `FunctionTool` fails for the same reason; current AI SDK also fails because its description union is wider than `string`. | `src/adapters/ai-sdk.ts:56-62`; `src/adapters/openai-agents.ts:59-66`; `src/adapters/mastra.ts:47-54`; [structural compiler failures](artifacts/frontend-consumer-typed.txt); [control](artifacts/frontend-consumer-control.txt); [real framework types](artifacts/frontend-actual-framework-types.txt). | Constrain callable members in a way that accepts concrete argument types while preserving the incoming tool type. Avoid unrelated narrow fields such as `description` when they are not required for wrapping. Add strict consumer fixtures for each supported peer version. |
+| FE-003 | Medium | Frontend / framework integration | All four adapters silently discard `idempotencyKey` | Run `node --test tests/qa/frontend-adapters.test.mjs`. Each `FE-003` case supplies a fixed key or generator to an adapter and captures its `client.createApproval()` options. | Expected: fixed key forwarded; generator called once per invocation and its result forwarded. Actual: all four adapters omit `idempotencyKey`, including generator callbacks, despite options extending `OversightOptions`. Retries can create duplicate approval requests and notifications. The check does not claim idempotency guarantees one execution of the underlying tool. | `src/adapters/ai-sdk.ts:52,88-94`; `src/adapters/openai-agents.ts:55,89-95`; `src/adapters/mastra.ts:43,79-85`; `src/adapters/langchain.ts:86-92`; [eight expected failures](artifacts/frontend-adapter-suite.txt). | Resolve the key once for each adapter invocation and forward it to `createApproval`, matching `SentinelClient.wrap`. Keep fixed/generator contract tests for all adapters. |
+| FE-004 | High | Frontend / installation | The documented Git install yields a package with no runtime entry points | Make a local shallow clone of commit `717392b` using `git clone --depth 1 --single-branch --branch qa/2026-10-02-sweep file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js /private/tmp/sentinel-qa-local-shallow-source`; run `npm install --prefix /private/tmp/sentinel-qa-git-consumer --no-audit --no-fund git+file:///private/tmp/sentinel-qa-local-shallow-source#717392b`; import `SentinelClient` from `sentinel-oversight` in an `.mjs` file in that consumer directory. | Expected: the README installation method produces importable SDK exports. Actual: install succeeds but the import throws `ERR_MODULE_NOT_FOUND` for `dist/index.js`. `dist/` is ignored and only `prepublishOnly` builds; Git installation does not trigger that hook. Independent clean-source `npm pack` contains only LICENSE, README and package.json. | `README.md:13-21`; `package.json:6-31,35-42`; `.gitignore:2`; [clean pack contents](artifacts/frontend-clean-source-pack.txt); [local Git install](artifacts/frontend-shallow-git-consumer.txt); [package-name import failure](artifacts/frontend-git-consumer-import.txt). | Add a Git-install-compatible build lifecycle such as `prepare`, validate clean Git installation, or document a tested built package installation path. Do not rely solely on `prepublishOnly`. |
+
+## Evidence and execution notes
+
+All shell commands, exits and UTC times are retained in [FRONTEND-LOG.md](FRONTEND-LOG.md) and `artifacts/frontend-commands.jsonl`. New defect tests use TODO finding IDs, leaving the product unchanged and the test exit code green. The bare compiler/import reproductions deliberately returned nonzero and remain visible in the log.
+
+The first direct local Git install encountered a partial-clone history limitation: npm's mirror clone could not obtain an older promisor object. That attempt is [recorded](artifacts/frontend-local-git-consumer.txt), not treated as a product failure. A shallow clone of the available current tree then succeeded and enabled the exact installation reproduction. No remote Git URL was contacted for this test.
+
+The npm tarball install used `--ignore-scripts` only after the clean-source pack already established the missing runtime files; the decisive local Git installation did **not** disable lifecycle scripts.
+
+The retained optional LangChain integration accepts a package directory via `SENTINEL_QA_LANGCHAIN_ROOT`; it contains no hardcoded host path. This is a non-secret test path. `run.py` clears service environment variables, then the logged `env ...` command adds only this explicit path. All framework packages came from the public package registry, with versions in [the version artifact](artifacts/frontend-actual-framework-versions.txt).
+
+## Limits
+
+No complete LLM agent/model round trip or live Sentinel delivery channel was exercised. LangChain 1.2.14, AI SDK 7.0.127 and OpenAI Agents 0.18.0 were the real framework versions tested. Older peer versions and a real Mastra package remain unverified; Mastra coverage is structural. This pass establishes local package/tool behavior, not server permissions, service availability, published npm availability or deployment status. No browser assets exist to screenshot.

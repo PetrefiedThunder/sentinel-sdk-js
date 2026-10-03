@@ -1,0 +1,5 @@
+Start: 2026-10-03T01:47:50+00:00
+End: 2026-10-03T01:47:50+00:00
+Command: sh -c 'for file in tests/qa/*.mjs; do node --check "$file" || exit; done'
+Exit: 0
+

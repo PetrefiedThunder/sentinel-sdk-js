@@ -1,0 +1,7 @@
+Start: 2026-10-03T01:45:14+00:00
+End: 2026-10-03T01:45:16+00:00
+Command: npm install --prefix /private/tmp/sentinel-qa-git-consumer --no-audit --no-fund 'git+file:///private/tmp/sentinel-qa-local-shallow-source#717392b'
+Exit: 0
+
+
+added 1 package in 2s

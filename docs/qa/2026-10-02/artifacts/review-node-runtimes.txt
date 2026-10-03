@@ -1,0 +1,20 @@
+Start: 2026-10-03T01:45:46+00:00
+End: 2026-10-03T01:45:46+00:00
+Command: python3 -c 'from pathlib import Path; print("\n".join(str(p) for p in Path("/private/tmp").glob("sentinel-qa*") if p.is_dir())); print("\n".join(str(p) for p in Path("/private/tmp/sentinel-qa-tools/node_modules").glob("node*/bin/node")))'
+Exit: 0
+
+/private/tmp/sentinel-qa-local-shallow-source
+/private/tmp/sentinel-qa-ux-20261002
+/private/tmp/sentinel-qa311
+/private/tmp/sentinel-qa-npm-cache
+/private/tmp/sentinel-qa-uv-cache
+/private/tmp/sentinel-qa-scan-xoz9exej
+/private/tmp/sentinel-qa-v8-before
+/private/tmp/sentinel-qa-v8-before-valid
+/private/tmp/sentinel-qa-clean-consumer
+/private/tmp/sentinel-qa-clean-source
+/private/tmp/sentinel-qa-git-consumer
+/private/tmp/sentinel-qa-tools
+/private/tmp/sentinel-qa-next-183802
+/private/tmp/sentinel-qa-node22-cache
+

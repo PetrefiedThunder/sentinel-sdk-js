@@ -1,0 +1,227 @@
+Start: 2026-10-03T01:42:56+00:00
+End: 2026-10-03T01:42:57+00:00
+Command: node --test tests/qa/frontend-adapters.test.mjs
+Exit: 0
+
+✔ ai: approval runs action exactly once and passes options (0.794458ms)
+✔ ai: reject prevents direct action execution (0.219167ms)
+✔ ai: timeout prevents direct action execution (0.065208ms)
+✔ ai: transport error prevents direct action execution (0.054625ms)
+⚠ FE-003 ai: forwards string idempotency key (0.720959ms) # FE-003: adapters omit the declared idempotencyKey option
+⚠ FE-003 ai: forwards function idempotency key (0.107334ms) # FE-003: adapters omit the declared idempotencyKey option
+✔ agents: approval runs action exactly once and passes options (0.119ms)
+✔ agents: reject prevents direct action execution (0.056166ms)
+✔ agents: timeout prevents direct action execution (0.059291ms)
+✔ agents: transport error prevents direct action execution (0.087833ms)
+⚠ FE-003 agents: forwards string idempotency key (0.084458ms) # FE-003: adapters omit the declared idempotencyKey option
+⚠ FE-003 agents: forwards function idempotency key (0.071166ms) # FE-003: adapters omit the declared idempotencyKey option
+✔ mastra: approval runs action exactly once and passes options (0.091125ms)
+✔ mastra: reject prevents direct action execution (0.04475ms)
+✔ mastra: timeout prevents direct action execution (0.04125ms)
+✔ mastra: transport error prevents direct action execution (0.035625ms)
+⚠ FE-003 mastra: forwards string idempotency key (0.058667ms) # FE-003: adapters omit the declared idempotencyKey option
+⚠ FE-003 mastra: forwards function idempotency key (0.055834ms) # FE-003: adapters omit the declared idempotencyKey option
+✔ langchain: approval runs action exactly once and passes options (0.089417ms)
+✔ langchain: reject prevents direct action execution (0.034334ms)
+✔ langchain: timeout prevents direct action execution (0.02975ms)
+✔ langchain: transport error prevents direct action execution (0.02775ms)
+⚠ FE-003 langchain: forwards string idempotency key (0.0515ms) # FE-003: adapters omit the declared idempotencyKey option
+⚠ FE-003 langchain: forwards function idempotency key (0.044333ms) # FE-003: adapters omit the declared idempotencyKey option
+✔ Mastra preserves tool binding, input, execution context and return value (0.066833ms)
+✔ LangChain allowlist and denylist select tools before creating approvals (0.058833ms)
+✔ LangChain names prefer runName, then name, then serialized id, then fallback (0.099916ms)
+✔ Tools-map helpers preserve distinct tool names (0.111208ms)
+✔ Package subpaths resolve in a strict NodeNext TypeScript consumer (291.784416ms)
+⚠ FE-002 adapters accept explicitly typed callbacks in a strict consumer (265.945333ms) # FE-002: unknown[] callable constraints reject typed framework callbacks
+ℹ tests 30
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 9
+ℹ duration_ms 603.818459
+
+✖ failing tests:
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 ai: forwards string idempotency key (0.720959ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-stable'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-stable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 ai: forwards function idempotency key (0.107334ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-generated'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-generated',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 agents: forwards string idempotency key (0.084458ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-stable'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-stable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 agents: forwards function idempotency key (0.071166ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-generated'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-generated',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 mastra: forwards string idempotency key (0.058667ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-stable'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-stable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 mastra: forwards function idempotency key (0.055834ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-generated'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-generated',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 langchain: forwards string idempotency key (0.0515ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-stable'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-stable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 langchain: forwards function idempotency key (0.044333ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-generated'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-generated',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:142:1
+⚠ FE-002 adapters accept explicitly typed callbacks in a strict consumer (265.945333ms) # FE-002: unknown[] callable constraints reject typed framework callbacks
+  AssertionError [ERR_ASSERTION]: tests/qa/frontend-consumer.mts(7,3): error TS2322: Type '(input: { amount: number; }) => Promise<number>' is not assignable to type '(...args: unknown[]) => unknown'.
+    Types of parameters 'input' and 'args' are incompatible.
+      Type 'unknown' is not assignable to type '{ amount: number; }'.
+  tests/qa/frontend-consumer.mts(10,3): error TS2322: Type '(_context: object, input: string) => Promise<any>' is not assignable to type '(...args: unknown[]) => unknown'.
+    Types of parameters '_context' and 'args' are incompatible.
+      Type 'unknown' is not assignable to type 'object'.
+  tests/qa/frontend-consumer.mts(13,3): error TS2322: Type '({ context }: { context: { amount: number; }; }) => Promise<number>' is not assignable to type '(...args: unknown[]) => unknown'.
+    Types of parameters '__0' and 'args' are incompatible.
+      Type 'unknown' is not assignable to type '{ context: { amount: number; }; }'.
+  
+  
+  2 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:144:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

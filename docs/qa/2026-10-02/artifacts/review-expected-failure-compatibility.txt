@@ -1,0 +1,54 @@
+Start: 2026-10-03T01:50:51+00:00
+End: 2026-10-03T01:50:51+00:00
+Command: python3 -c 'from pathlib import Path; print(Path("tests/qa/known-defect.mjs").read_text());[(print(str(p)),print("\n".join(line for line in p.read_text().splitlines() if any(x in line for x in ["knownDefect", "known-defect", "todo:", "skip:"])))) for p in Path("tests/qa").glob("*.test.mjs")];[(print(str(p)),print("\n".join(line for line in p.read_text().splitlines() if any(x in line for x in ["Command:", "Exit:", "ℹ tests ", "ℹ pass ", "ℹ fail ", "ℹ skipped ", "ℹ todo ", "# tests ", "# pass ", "# fail ", "# skipped ", "# todo "])))) for p in Path("docs/qa/2026-10-02/artifacts").glob("coord-final-node*-compatible.txt")]'
+Exit: 0
+
+// Node 18.17 exits 1 for failing TODO tests despite reporting zero failures.
+// Keep documented defects explicit skips there; Node 20+ executes every repro.
+// Evidence: docs/qa/2026-10-02/artifacts/review-node18-todo-exit-control.txt.
+export function knownDefect(reason) {
+  return Number(process.versions.node.split('.')[0]) < 20
+    ? { skip: `${reason}; Node 18 TODO-exit limitation, reproduced on Node 24/26` }
+    : { todo: reason };
+}
+
+tests/qa/frontend-adapters.test.mjs
+import { knownDefect } from './known-defect.mjs';
+    test(`FE-003 ${name}: forwards ${typeof key} idempotency key`, { ...knownDefect('FE-003: adapters omit the declared idempotencyKey option') }, async () => {
+test('FE-002 adapters accept explicitly typed callbacks in a strict consumer', { ...knownDefect('FE-002: unknown[] callable constraints reject typed framework callbacks') }, () => {
+tests/qa/frontend-langchain.integration.test.mjs
+import { knownDefect } from './known-defect.mjs';
+const optional = { skip: !DynamicTool && 'Optional @langchain/core is not installed; see FRONTEND-REPORT.md' };
+test('FE-001 real LangChain tool requests approval before executing', { ...optional, ...knownDefect('FE-001: ignoreAgent=true skips handleToolStart completely') }, async () => {
+  test(`FE-001 real LangChain ${label} blocks execution`, { ...optional, ...knownDefect('FE-001: callback is skipped; absent raiseError also swallows errors') }, async () => {
+  test(`FE-001 enabling callback alone still swallows ${label}`, { ...optional, ...knownDefect('FE-001: raiseError must also be true') }, async () => {
+tests/qa/backend-core.test.mjs
+import { knownDefect } from './known-defect.mjs';
+test('BE-001: mutation during approval wait must not change the executed intent', { ...knownDefect('BE-001 mutable approval arguments') }, async () => {
+test('BE-002: approval received after deadline must not execute the action', { ...knownDefect('BE-002 local deadline is not enforced on terminal response') }, async () => {
+test('BE-002: a stalled request must settle at the approval deadline', { ...knownDefect('BE-002 fetch has no deadline or abort signal') }, async () => {
+test('BE-003: lossy non-JSON arguments must fail before approval or execution', { ...knownDefect('BE-003 serializer accepts silently altered values') }, async () => {
+test('BE-004: legacy fallback polling must be paced', { ...knownDefect('BE-004 no delay between 404/pending poll attempts') }, async () => {
+test('BE-005: plain-text HTTP error retains useful response detail', { ...knownDefect('BE-005 response body is consumed before text fallback') }, async () => {
+tests/qa/ux-docs.test.mjs
+import { knownDefect } from './known-defect.mjs';
+  ...knownDefect('UX-001: inline anonymous callback is sent as function_name anonymous'),
+  ...knownDefect('UX-002: the catch example silently swallows errors outside three listed classes'),
+  ...knownDefect('UX-002: a payment error after approval also vanishes in the example catch'),
+  ...knownDefect('UX-003: package.json is not an exported package subpath'),
+docs/qa/2026-10-02/artifacts/coord-final-node18-compatible.txt
+Command: npm exec --offline --yes --package=node@18.17.1 -- node --test tests/ai-sdk.test.mjs tests/idempotency.test.mjs tests/openai-agents.test.mjs tests/pagination.test.mjs tests/serializable.test.mjs tests/timeout.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs
+Exit: 0
+# tests 110
+# pass 83
+# fail 0
+# skipped 27
+# todo 0
+docs/qa/2026-10-02/artifacts/coord-final-node24-compatible.txt
+Command: env SENTINEL_QA_LANGCHAIN_ROOT=/private/tmp/sentinel-qa-tools/node_modules/@langchain/core npm exec --offline --yes --package=node@24 -- node --test tests/ai-sdk.test.mjs tests/idempotency.test.mjs tests/openai-agents.test.mjs tests/pagination.test.mjs tests/serializable.test.mjs tests/timeout.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs
+Exit: 0
+ℹ tests 110
+ℹ pass 86
+ℹ fail 0
+ℹ skipped 0
+ℹ todo 24

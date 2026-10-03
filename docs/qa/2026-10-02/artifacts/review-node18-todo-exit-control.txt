@@ -1,0 +1,37 @@
+Start: 2026-10-03T01:48:56+00:00
+End: 2026-10-03T01:48:56+00:00
+Command: npm exec --offline --yes --package=node@18.17.1 -- node --input-type=module -e 'import { test } from "node:test"; import assert from "node:assert/strict"; test("TODO exit behavior control", { todo: "Known assertion failure" }, () => assert.equal(1, 2));'
+Exit: 1
+
+TAP version 13
+# Subtest: TODO exit behavior control
+not ok 1 - TODO exit behavior control # TODO Known assertion failure
+  ---
+  duration_ms: 0.876041
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 2
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 2
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/[eval1]:1:161)
+    Test.runInAsyncScope (node:async_hooks:203:9)
+    Test.run (node:internal/test_runner/test:573:25)
+    Test.start (node:internal/test_runner/test:486:17)
+    startSubtest (node:internal/test_runner/harness:202:17)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 1
+# duration_ms 0.134458
