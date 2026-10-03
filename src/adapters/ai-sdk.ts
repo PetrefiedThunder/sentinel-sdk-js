@@ -54,9 +54,7 @@ export interface AiSdkGateOptions extends OversightOptions {
 }
 
 interface AiSdkToolLike {
-  description?: string;
-  execute?: (...args: unknown[]) => unknown | Promise<unknown>;
-  [key: string]: unknown;
+  execute?(...args: unknown[]): unknown | Promise<unknown>;
 }
 
 export function gated<T extends AiSdkToolLike>(

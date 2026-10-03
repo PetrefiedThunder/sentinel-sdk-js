@@ -140,7 +140,7 @@ test('Package subpaths resolve in a strict NodeNext TypeScript consumer', () => 
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
 
-test('FE-002 adapters accept explicitly typed callbacks in a strict consumer', { ...knownDefect('FE-002: unknown[] callable constraints reject typed framework callbacks') }, () => {
+test('FE-002 adapters accept explicitly typed callbacks in a strict consumer', () => {
   const result = compile('frontend-consumer.mts');
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });

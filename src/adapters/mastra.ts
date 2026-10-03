@@ -46,9 +46,7 @@ export interface MastraGateOptions extends OversightOptions {
 
 interface MastraToolLike {
   id?: string;
-  description?: string;
-  execute: (...args: unknown[]) => unknown | Promise<unknown>;
-  [key: string]: unknown;
+  execute(...args: unknown[]): unknown | Promise<unknown>;
 }
 
 export function gated<T extends MastraToolLike>(

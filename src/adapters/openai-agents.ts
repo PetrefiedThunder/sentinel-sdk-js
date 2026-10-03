@@ -58,9 +58,7 @@ export interface OpenAiAgentsGateOptions extends OversightOptions {
 
 interface FunctionToolLike {
   name?: string;
-  description?: string;
-  invoke: (...args: unknown[]) => unknown | Promise<unknown>;
-  [key: string]: unknown;
+  invoke(...args: unknown[]): unknown | Promise<unknown>;
 }
 
 export function gated<T extends FunctionToolLike>(
