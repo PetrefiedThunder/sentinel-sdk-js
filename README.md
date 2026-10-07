@@ -33,7 +33,7 @@ import { configure, oversight } from 'sentinel-oversight';
 configure({ apiKey: process.env.SENTINEL_API_KEY! });
 
 const wireTransfer = oversight(
-  { riskLevel: 'high', approvers: ['alice@acme.com'] },
+  { functionName: 'wireTransfer', riskLevel: 'high', approvers: ['alice@acme.com'] },
   async (amountCents: number, recipient: string) => {
     return stripe.transfers.create({
       amount: amountCents,
@@ -51,6 +51,9 @@ await wireTransfer(50_000_00, 'acct_acme_corp');
 // 5. On timeout → ApprovalTimeout thrown.
 ```
 
+Set `functionName` explicitly for anonymous callbacks or minified code so
+approvers can identify the operation.
+
 ## What you get
 
 - **One wrapper** — `oversight({...}, fn)` returns a new fn with the same signature
@@ -59,6 +62,17 @@ await wireTransfer(50_000_00, 'acct_acme_corp');
 - **Hash-chained audit log** — every approval is immutably recorded
 - **Sync + async** — works with both plain functions and Promise-returning ones
 - **Zero deps** — uses native `fetch`, no axios / undici tax
+
+`oversight` / `client.wrap` copy JSON arguments before requesting approval and
+execute that snapshot. Changing the caller's objects while approval is pending
+does not change the action. The function receives its own mutable copy; caller
+object identity is not preserved.
+
+Arguments must be plain JSON data: objects, dense arrays, strings, finite numbers,
+booleans or null. Unsupported values (including `undefined`, functions, symbols,
+Maps/Sets, Dates, class instances, accessors, sparse arrays and circular references)
+raise `TypeError` before any request. Convert them explicitly before calling.
+Repeated references are copied as JSON data; negative zero is normalized to zero.
 
 ## Approvers
 
@@ -79,6 +93,20 @@ for prioritization.
 
 ## Errors
 
+The LangChain callback adapter fails closed: rejection, timeout, network/HTTP
+errors and malformed approvals block the tool. It provides no fail-open option.
+Do not disable its `raiseError`, `awaitHandlers` or tool callback flags. The
+required integration suite tests `@langchain/core` 1.2.14 on Node 20+.
+
+`client.wrap` / `oversight` use one local deadline across approval creation and
+waiting. A late decision cannot start the function. Individual `createApproval`
+and `waitForDecision` calls also bound network and response-body waits and abort
+timed-out requests. `createApproval({ ..., signal })` and
+`waitForDecision(actionId, timeoutSeconds, signal)` accept optional cancellation
+signals. A creation timeout has an empty `actionId` because no ID was received.
+The deadline gates the start of the approved function; it does not cancel work
+that has already started.
+
 ```typescript
 import {
   SentinelError,
@@ -97,9 +125,14 @@ try {
     console.log('No decision in time:', e.actionId);
   } else if (e instanceof SentinelAPIError) {
     console.log(`API ${e.statusCode}:`, e.message);
+  } else {
+    throw e;
   }
 }
 ```
+
+Native transport errors and failures from the approved function also propagate
+through the wrapped call. Rethrow errors that the application does not handle.
 
 ## Idempotency
 

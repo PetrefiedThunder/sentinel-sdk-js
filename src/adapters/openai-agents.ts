@@ -58,9 +58,7 @@ export interface OpenAiAgentsGateOptions extends OversightOptions {
 
 interface FunctionToolLike {
   name?: string;
-  description?: string;
-  invoke: (...args: unknown[]) => unknown | Promise<unknown>;
-  [key: string]: unknown;
+  invoke(...args: unknown[]): unknown | Promise<unknown>;
 }
 
 export function gated<T extends FunctionToolLike>(
@@ -92,6 +90,9 @@ export function gated<T extends FunctionToolLike>(
       riskLevel: opts.riskLevel,
       approvers: opts.approvers,
       timeoutSeconds: opts.timeoutSeconds,
+      idempotencyKey: typeof opts.idempotencyKey === 'function'
+        ? opts.idempotencyKey()
+        : opts.idempotencyKey,
     });
 
     const decision = await sentinel.waitForDecision(

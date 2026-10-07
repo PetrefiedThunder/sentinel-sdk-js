@@ -1,4 +1,3 @@
-import { knownDefect } from './known-defect.mjs';
 import { afterEach, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -129,16 +128,12 @@ test('public VERSION export supplies the contributor version-report workaround',
   assert.equal(result.stdout.trim(), sdk.VERSION);
 });
 
-test('UX-001 README quickstart should send a recognizable action name', {
-  ...knownDefect('UX-001: inline anonymous callback is sent as function_name anonymous'),
-}, async () => {
+test('UX-001 README quickstart should send a recognizable action name', async () => {
   await quickstart({ transfers: { create: async () => ({ id: 'synthetic-receipt' }) } })();
   assert.equal(requests[0].body.function_name, 'wireTransfer');
 });
 
-test('UX-002 README Errors block should propagate transport failures', {
-  ...knownDefect('UX-002: the catch example silently swallows errors outside three listed classes'),
-}, async () => {
+test('UX-002 README Errors block should propagate transport failures', async () => {
   const client = new sdk.SentinelClient({ apiKey: 'synthetic-noncredential', apiUrl: 'http://127.0.0.1:1' });
   const transportError = new TypeError('Synthetic connection failure');
   globalThis.fetch = async () => { throw transportError; };
@@ -149,9 +144,7 @@ test('UX-002 README Errors block should propagate transport failures', {
   await assert.rejects(run, (error) => error === transportError);
 });
 
-test('UX-002 README Errors block should propagate the approved business operation failure', {
-  ...knownDefect('UX-002: a payment error after approval also vanishes in the example catch'),
-}, async () => {
+test('UX-002 README Errors block should propagate the approved business operation failure', async () => {
   const client = new sdk.SentinelClient({ apiKey: 'synthetic-noncredential', apiUrl: 'http://127.0.0.1:1' });
   const operationError = new Error('Synthetic payment failure');
   const run = program('Errors', {
@@ -161,12 +154,11 @@ test('UX-002 README Errors block should propagate the approved business operatio
   await assert.rejects(run, (error) => error === operationError);
 });
 
-test('UX-003 documented SDK version command should complete successfully', {
-  ...knownDefect('UX-003: package.json is not an exported package subpath'),
-}, () => {
-  const snippet = contributorGuide.match(/node -e "([^"]+)"/);
+test('UX-003 documented SDK version command should complete successfully', () => {
+  const snippet = contributorGuide.match(/node (?:(--input-type=module) )?-e "([^"]+)"/);
   assert.ok(snippet, 'CONTRIBUTING version-reporting command exists');
-  const result = spawnSync(process.execPath, ['-e', snippet[1]], {
+  const args = [...(snippet[1] ? [snippet[1]] : []), '-e', snippet[2]];
+  const result = spawnSync(process.execPath, args, {
     cwd: new URL('../../', import.meta.url), encoding: 'utf8',
   });
   assert.equal(result.status, 0, result.stderr);
