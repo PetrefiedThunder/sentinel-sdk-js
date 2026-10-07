@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:45:21+00:00
+End: 2026-10-03T01:45:21+00:00
+Command: python3 -c 'from pathlib import Path; p=Path("/private/tmp/sentinel-qa-git-consumer/consumer.mjs"); p.write_text("import { SentinelClient } from \"sentinel-oversight\";\nconsole.log(typeof SentinelClient);\n"); print("Wrote package-name import consumer at", p)'
+Exit: 0
+
+Wrote package-name import consumer at /private/tmp/sentinel-qa-git-consumer/consumer.mjs

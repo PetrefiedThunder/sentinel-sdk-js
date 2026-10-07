@@ -1,0 +1,553 @@
+Start: 2026-10-03T01:45:18+00:00
+End: 2026-10-03T01:45:18+00:00
+Command: env SENTINEL_QA_LANGCHAIN_ROOT=/private/tmp/sentinel-qa-tools/node_modules/@langchain/core node --test tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs
+Exit: 0
+
+✔ BE control: missing API key fails before network (0.695667ms)
+✔ BE control: approved named and positional arguments execute once and preserve return values (2.037666ms)
+✔ BE control: rejection blocks the protected action and retains reason/action ID (0.81375ms)
+✔ BE control: rejection wins a contradictory approved/rejected response (0.33075ms)
+✔ BE error matrix: HTTP 401 stops execution without an automatic retry (0.283166ms)
+✔ BE error matrix: HTTP 403 stops execution without an automatic retry (0.176875ms)
+✔ BE error matrix: HTTP 409 stops execution without an automatic retry (0.12325ms)
+✔ BE error matrix: HTTP 422 stops execution without an automatic retry (0.186042ms)
+✔ BE error matrix: HTTP 429 stops execution without an automatic retry (0.141583ms)
+✔ BE error matrix: HTTP 500 stops execution without an automatic retry (0.127167ms)
+✔ BE error matrix: HTTP 503 stops execution without an automatic retry (0.106917ms)
+✔ BE control: structured validation error survives normalization (0.169458ms)
+✔ BE control: transport failure stops execution (0.102958ms)
+✔ BE control: malformed successful JSON stops execution (0.09525ms)
+✔ BE control: pending decision past deadline throws ApprovalTimeout (0.122375ms)
+✔ BE control: 404 wait fallback can retrieve a valid approval (0.154041ms)
+✔ BE control: decision-only response is accepted for backward compatibility (0.076166ms)
+✔ BE control: separately configured clients and captured wrappers keep their own auth context (0.536875ms)
+✔ BE control: path and query special characters remain data (0.780959ms)
+✔ BE property control: seeded JSON values preserve approved and executed intent (2.434208ms)
+✔ BE control: circular and BigInt arguments fail before request or execution (3.51725ms)
+✔ BE control: tenant settings and legacy audit list use expected wire shapes (0.180459ms)
+✔ BE idempotency scope control: replayed approval does not deduplicate wrapped side effects (0.158542ms)
+⚠ BE-001: mutation during approval wait must not change the executed intent (0.781084ms) # BE-001 mutable approval arguments
+⚠ BE-002: approval received after deadline must not execute the action (0.198041ms) # BE-002 local deadline is not enforced on terminal response
+⚠ BE-002: a stalled request must settle at the approval deadline (81.696708ms) # BE-002 fetch has no deadline or abort signal
+⚠ BE-003: lossy non-JSON arguments must fail before approval or execution (0.614917ms) # BE-003 serializer accepts silently altered values
+⚠ BE-004: legacy fallback polling must be paced (102.147291ms) # BE-004 no delay between 404/pending poll attempts
+✔ BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions (16.842792ms)
+⚠ BE-005: plain-text HTTP error retains useful response detail (0.318ms) # BE-005 response body is consumed before text fallback
+✔ ai: approval runs action exactly once and passes options (0.785375ms)
+✔ ai: reject prevents direct action execution (0.235416ms)
+✔ ai: timeout prevents direct action execution (0.056125ms)
+✔ ai: transport error prevents direct action execution (0.442166ms)
+⚠ FE-003 ai: forwards string idempotency key (0.537375ms) # FE-003: adapters omit the declared idempotencyKey option
+⚠ FE-003 ai: forwards function idempotency key (0.139583ms) # FE-003: adapters omit the declared idempotencyKey option
+✔ agents: approval runs action exactly once and passes options (0.14925ms)
+✔ agents: reject prevents direct action execution (0.069041ms)
+✔ agents: timeout prevents direct action execution (0.067459ms)
+✔ agents: transport error prevents direct action execution (0.09325ms)
+⚠ FE-003 agents: forwards string idempotency key (0.093ms) # FE-003: adapters omit the declared idempotencyKey option
+⚠ FE-003 agents: forwards function idempotency key (0.084209ms) # FE-003: adapters omit the declared idempotencyKey option
+✔ mastra: approval runs action exactly once and passes options (0.148208ms)
+✔ mastra: reject prevents direct action execution (0.05325ms)
+✔ mastra: timeout prevents direct action execution (0.037625ms)
+✔ mastra: transport error prevents direct action execution (0.037917ms)
+⚠ FE-003 mastra: forwards string idempotency key (0.085791ms) # FE-003: adapters omit the declared idempotencyKey option
+⚠ FE-003 mastra: forwards function idempotency key (0.065708ms) # FE-003: adapters omit the declared idempotencyKey option
+✔ langchain: approval runs action exactly once and passes options (0.0865ms)
+✔ langchain: reject prevents direct action execution (0.031708ms)
+✔ langchain: timeout prevents direct action execution (0.0275ms)
+✔ langchain: transport error prevents direct action execution (0.029791ms)
+⚠ FE-003 langchain: forwards string idempotency key (0.044208ms) # FE-003: adapters omit the declared idempotencyKey option
+⚠ FE-003 langchain: forwards function idempotency key (0.04325ms) # FE-003: adapters omit the declared idempotencyKey option
+✔ Mastra preserves tool binding, input, execution context and return value (0.060625ms)
+✔ LangChain allowlist and denylist select tools before creating approvals (0.054708ms)
+✔ LangChain names prefer runName, then name, then serialized id, then fallback (0.118166ms)
+✔ Tools-map helpers preserve distinct tool names (0.097625ms)
+✔ Package subpaths resolve in a strict NodeNext TypeScript consumer (306.59125ms)
+⚠ FE-002 adapters accept explicitly typed callbacks in a strict consumer (271.616541ms) # FE-002: unknown[] callable constraints reject typed framework callbacks
+Error in handler SentinelCallbackHandler, handleToolStart: ApprovalRejected: Approval rejected by Sentinel
+Error in handler SentinelCallbackHandler, handleToolStart: ApprovalRejected: Approval rejected by Sentinel
+Error in handler SentinelCallbackHandler, handleToolStart: ApprovalTimeout: Approval timed out after 1s
+Error in handler SentinelCallbackHandler, handleToolStart: ApprovalTimeout: Approval timed out after 1s
+⚠ FE-001 real LangChain tool requests approval before executing (3.828416ms) # FE-001: ignoreAgent=true skips handleToolStart completely
+⚠ FE-001 real LangChain rejection blocks execution (0.330625ms) # FE-001: callback is skipped; absent raiseError also swallows errors
+⚠ FE-001 enabling callback alone still swallows rejection (0.64575ms) # FE-001: raiseError must also be true
+✔ LangChain control: callback enabled and raiseError propagates rejection (0.27575ms)
+⚠ FE-001 real LangChain timeout blocks execution (0.188167ms) # FE-001: callback is skipped; absent raiseError also swallows errors
+⚠ FE-001 enabling callback alone still swallows timeout (0.404459ms) # FE-001: raiseError must also be true
+✔ LangChain control: callback enabled and raiseError propagates timeout (0.217833ms)
+✔ LangChain control: callback enabled and approval allows one execution (0.170375ms)
+✔ README quickstart waits for a decision before calling the payment stub (29.740542ms)
+✔ README quickstart rejects without calling the payment stub (2.322416ms)
+✔ README Errors block reports documented rejected, timed-out and HTTP errors (5.548417ms)
+✔ missing SDK configuration has an actionable local error (0.253792ms)
+✔ explicit action names and synchronous return values remain usable (0.338416ms)
+✔ public VERSION export supplies the contributor version-report workaround (31.9135ms)
+⚠ UX-001 README quickstart should send a recognizable action name (2.476458ms) # UX-001: inline anonymous callback is sent as function_name anonymous
+⚠ UX-002 README Errors block should propagate transport failures (1.354333ms) # UX-002: the catch example silently swallows errors outside three listed classes
+⚠ UX-002 README Errors block should propagate the approved business operation failure (2.321083ms) # UX-002: a payment error after approval also vanishes in the example catch
+⚠ UX-003 documented SDK version command should complete successfully (29.671417ms) # UX-003: package.json is not an exported package subpath
+ℹ tests 78
+ℹ suites 0
+ℹ pass 54
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 24
+ℹ duration_ms 629.039042
+
+✖ failing tests:
+
+test at tests/qa/backend-core.test.mjs:192:1
+⚠ BE-001: mutation during approval wait must not change the executed intent (0.781084ms) # BE-001 mutable approval arguments
+  AssertionError [ERR_ASSERTION]: executed payload must match the human-reviewed request
+  + actual - expected
+  
+    {
+      transfer: {
+  +     amount: 999,
+  +     recipient: 'qa-changed'
+  -     amount: 1,
+  -     recipient: 'qa-reviewed'
+      }
+    }
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:210:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { transfer: { amount: 999, recipient: 'qa-changed' } },
+    expected: { transfer: { amount: 1, recipient: 'qa-reviewed' } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/backend-core.test.mjs:213:1
+⚠ BE-002: approval received after deadline must not execute the action (0.198041ms) # BE-002 local deadline is not enforced on terminal response
+  AssertionError [ERR_ASSERTION]: a late approval must not run the protected action
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:223:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/backend-core.test.mjs:227:1
+⚠ BE-002: a stalled request must settle at the approval deadline (81.696708ms) # BE-002 fetch has no deadline or abort signal
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'still-pending'
+  - 'timeout'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:238:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'still-pending',
+    expected: 'timeout',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/backend-core.test.mjs:241:1
+⚠ BE-003: lossy non-JSON arguments must fail before approval or execution (0.614917ms) # BE-003 serializer accepts silently altered values
+  AssertionError [ERR_ASSERTION]: silently omitted or changed data must not execute under a different approved payload
+  + actual - expected
+  
+  + [
+  +   'amount',
+  +   'amount',
+  +   'hidden',
+  +   'targets',
+  +   'targets',
+  +   'operation'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:255:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'amount', 'amount', 'hidden', 'targets', 'targets', 'operation' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/backend-core.test.mjs:259:1
+⚠ BE-004: legacy fallback polling must be paced (102.147291ms) # BE-004 no delay between 404/pending poll attempts
+  AssertionError [ERR_ASSERTION]: 100 ms polling window made 44 requests; fallback must be paced
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:266:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/qa/backend-core.test.mjs:321:1
+⚠ BE-005: plain-text HTTP error retains useful response detail (0.318ms) # BE-005 response body is consumed before text fallback
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Synthetic gateway unavailable/. Input:
+  
+  '[502] '
+  
+      at Object.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:326:12)
+      at expectedException (node:assert:547:17)
+      at expectsError (node:assert:672:21)
+      at strict.rejects (node:assert:738:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:323:3)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '[502] ',
+    expected: /Synthetic gateway unavailable/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 ai: forwards string idempotency key (0.537375ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-stable'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-stable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 ai: forwards function idempotency key (0.139583ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-generated'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-generated',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 agents: forwards string idempotency key (0.093ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-stable'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-stable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 agents: forwards function idempotency key (0.084209ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-generated'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-generated',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 mastra: forwards string idempotency key (0.085791ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-stable'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-stable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 mastra: forwards function idempotency key (0.065708ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-generated'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-generated',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 langchain: forwards string idempotency key (0.044208ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-stable'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-stable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:76:5
+⚠ FE-003 langchain: forwards function idempotency key (0.04325ms) # FE-003: adapters omit the declared idempotencyKey option
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'qa-generated'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:79:14)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'qa-generated',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-adapters.test.mjs:142:1
+⚠ FE-002 adapters accept explicitly typed callbacks in a strict consumer (271.616541ms) # FE-002: unknown[] callable constraints reject typed framework callbacks
+  AssertionError [ERR_ASSERTION]: tests/qa/frontend-consumer.mts(7,3): error TS2322: Type '(input: { amount: number; }) => Promise<number>' is not assignable to type '(...args: unknown[]) => unknown'.
+    Types of parameters 'input' and 'args' are incompatible.
+      Type 'unknown' is not assignable to type '{ amount: number; }'.
+  tests/qa/frontend-consumer.mts(10,3): error TS2322: Type '(_context: object, input: string) => Promise<any>' is not assignable to type '(...args: unknown[]) => unknown'.
+    Types of parameters '_context' and 'args' are incompatible.
+      Type 'unknown' is not assignable to type 'object'.
+  tests/qa/frontend-consumer.mts(13,3): error TS2322: Type '({ context }: { context: { amount: number; }; }) => Promise<number>' is not assignable to type '(...args: unknown[]) => unknown'.
+    Types of parameters '__0' and 'args' are incompatible.
+      Type 'unknown' is not assignable to type '{ context: { amount: number; }; }'.
+  
+  
+  2 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-adapters.test.mjs:144:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:45:1
+⚠ FE-001 real LangChain tool requests approval before executing (3.828416ms) # FE-001: ignoreAgent=true skips handleToolStart completely
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:49:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:56:3
+⚠ FE-001 real LangChain rejection blocks execution (0.330625ms) # FE-001: callback is skipped; absent raiseError also swallows errors
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalRejected).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:58:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:62:3
+⚠ FE-001 enabling callback alone still swallows rejection (0.64575ms) # FE-001: raiseError must also be true
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalRejected).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:64:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:56:3
+⚠ FE-001 real LangChain timeout blocks execution (0.188167ms) # FE-001: callback is skipped; absent raiseError also swallows errors
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalTimeout).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:58:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:62:3
+⚠ FE-001 enabling callback alone still swallows timeout (0.404459ms) # FE-001: raiseError must also be true
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalTimeout).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:64:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:131:1
+⚠ UX-001 README quickstart should send a recognizable action name (2.476458ms) # UX-001: inline anonymous callback is sent as function_name anonymous
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'anonymous'
+  - 'wireTransfer'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:135:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'anonymous',
+    expected: 'wireTransfer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:138:1
+⚠ UX-002 README Errors block should propagate transport failures (1.354333ms) # UX-002: the catch example silently swallows errors outside three listed classes
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:148:3)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:151:1
+⚠ UX-002 README Errors block should propagate the approved business operation failure (2.321083ms) # UX-002: a payment error after approval also vanishes in the example catch
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:160:3)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/ux-docs.test.mjs:163:1
+⚠ UX-003 documented SDK version command should complete successfully (29.671417ms) # UX-003: package.json is not an exported package subpath
+  AssertionError [ERR_ASSERTION]: node:internal/modules/cjs/loader:731
+      throw e;
+      ^
+  
+  Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './package.json' is not defined by "exports" in /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/package.json imported from /Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/[eval]
+      at exportsNotFound (node:internal/modules/esm/resolve:315:10)
+      at packageExportsResolve (node:internal/modules/esm/resolve:663:9)
+      at resolveExpansion (node:internal/modules/cjs/loader:724:34)
+      at trySelf (node:internal/modules/cjs/loader:681:10)
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1553:24)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1123:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1147:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1174:12)
+      at Module._load (node:internal/modules/cjs/loader:1346:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:261:19) {
+    code: 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+  }
+  
+  Node.js v26.7.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/ux-docs.test.mjs:171:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

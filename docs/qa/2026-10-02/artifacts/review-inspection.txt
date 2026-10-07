@@ -1,0 +1,162 @@
+Start: 2026-10-03T01:44:50+00:00
+End: 2026-10-03T01:44:50+00:00
+Command: python3 -c 'from pathlib import Path; import subprocess; print(subprocess.run(["git","status","--short"],capture_output=True,text=True).stdout); print("QA FILES"); print("\n".join(str(p) for p in Path("tests/qa").rglob("*") if p.is_file())); print(Path("docs/qa/2026-10-02/PLAN.md").read_text()); print(Path("package.json").read_text())'
+Exit: 0
+
+?? docs/
+?? tests/qa/
+
+QA FILES
+tests/qa/frontend-adapters.test.mjs
+tests/qa/frontend-consumer.mts
+tests/qa/frontend-consumer-control.mts
+tests/qa/frontend-langchain.integration.test.mjs
+tests/qa/backend-core.test.mjs
+tests/qa/ux-docs.test.mjs
+# QA plan — Sentinel JavaScript SDK — 2026-10-02
+
+PR: opened by orchestrator
+CI status: pending at time of writing
+
+## Scope and controls
+
+Worktree: `/Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js`; branch: `qa/2026-10-02-sweep`; starting commit: `717392b`. Remote identity: `PetrefiedThunder/sentinel-sdk-js`. Initial working tree clean. This is a Node.js/TypeScript SDK, not RegEngine and not a web app. No local repository AGENTS.md was found. The ancestor `/Users/sellers/AGENTS.md` contains stale RegEngine guidance; current session instructions govern this SDK task.
+
+Only tests, QA test configuration and documentation will change. No product fixes, commits, pushes, PR API calls, deployments, environment files, credentials, remote services or databases. Network is restricted to public dependency/package metadata installation. Tests use synthetic data and mocked fetch or loopback servers. The logging runner passes only basic process variables to commands and does not forward service credentials. No live smoke/demo or schema-refresh commands will run.
+
+UTC timestamps fall on October 3 while the requested Los Angeles QA date is October 2. Every pass has a separate log; SESSION-LOG.md indexes and consolidates commands, failures, charters and edits. Artifacts are text/JSON reports. UI screenshots would misrepresent an SDK and are not applicable.
+
+## Repository map
+
+| Area | Surface | Main risk |
+| --- | --- | --- |
+| `src/index.ts` | Client, approval wrapper, polling, global configuration, pagination, audit/usage requests | Unapproved or duplicate execution; wrong client; hangs; transport errors |
+| `src/adapters/{ai-sdk,openai-agents,langchain,mastra}.ts` | Four framework integrations | Approval bypass, changed tool arguments, broken package interoperability |
+| `src/generated/api.d.ts`, `src/generated/index.ts` | Checked-in OpenAPI-derived contracts | Drift between hand-written wire shapes and checked-in contract |
+| `tests/*.mjs` | Node built-in unit tests; separate live smoke | Gaps in negative paths, adapter coverage and execution safety |
+| `package.json`, `tsconfig.json`, lockfile | ESM exports, declarations, package contents, Node compatibility | Consumers cannot install, import or compile |
+| `README.md`, `CONTRIBUTING.md`, `examples/demo.mjs` | Installation, quickstart, examples, API discoverability | Copied examples fail, unsafe assumptions, unclear recovery |
+| `.github/workflows/` | Existing verification configuration (read only) | New QA checks not exercised by existing CI |
+
+## Risk ranking
+
+Impact and likelihood use 1–5 scales; score is impact × likelihood. Ranking is initial and will be revised only with evidence.
+
+| Rank | Risk | Impact | Likelihood | Score |
+| --- | --- | ---: | ---: | ---: |
+| 1 | Wrapped action executes without the exact approved intent or more than once | 5 | 4 | 20 |
+| 2 | Polling/HTTP timeout, failure or malformed response leaves work hanging or unsafe | 5 | 4 | 20 |
+| 3 | Framework adapter changes/bypasses approval or tool behavior | 5 | 3 | 15 |
+| 4 | Credentials/client context leak across concurrent requests or reconfiguration | 5 | 3 | 15 |
+| 5 | Published exports/types/examples fail in supported consumers | 4 | 3 | 12 |
+| 6 | Serialization, query boundaries or contract drift misrepresent requests | 4 | 3 | 12 |
+| 7 | Dependency supply chain and accidental sensitive package content | 4 | 2 | 8 |
+| 8 | Error messages and docs prevent diagnosis or misstate safety guarantees | 3 | 3 | 9 |
+
+## Three passes and methods
+
+1. **Backend QA → SDK core transport and safety.** Establish the unmodified suite with V8 coverage, build and strict typecheck. Use boundary/equivalence cases, deterministic seeded generated cases, auth-header/client-isolation matrices, idempotency/concurrency probes, error and cancellation probes, and offline checks against the checked-in schema. Review OWASP API risks at the SDK boundary; server authorization cannot be established here. These methods target the highest-impact fail-closed behavior with reproducible fast tests rather than production integration.
+2. **Frontend QA → package and framework consumer integration.** There is no DOM/UI. Verify the npm artifact, ESM exports/declarations, supported Node assumptions and adapter behavior with stubbed tools; build/typecheck and isolated consumer smoke tests replace application build and browser E2E. Cross-browser, Lighthouse, console/network UI checks and screenshots are not applicable. Use dependency audit via public npm metadata. A frontend lint command will be checked for availability; no speculative lint policy will be added.
+3. **UX QA → developer experience.** Walk through README install/quickstart/API examples, discoverability, error recovery and async states using local stubs; assess Nielsen heuristics adapted to an SDK (feedback, consistency, control, prevention, recovery, documentation). WCAG/axe, keyboard/screen reader, responsive layouts and screenshot requirements do not apply without UI. Retain executable transcript evidence instead.
+
+Each pass has one or more 15–20 minute exploratory charters with UTC start/end and outcomes. Passes may run concurrently as independent workstreams, with distinct logs and file ownership. Baseline coverage is captured before new QA tests. The test pyramid is primarily unit/negative-path tests, a smaller set of real loopback HTTP/package integration tests, and no live production end-to-end tests. Bugs are documented and retained as expected-failure/TODO tests keyed to finding IDs; product behavior stays unchanged. Tests must never contact the SDK's production default URL.
+
+## Acceptance and exclusions
+
+All five mandatory documents, separate pass logs and reproducible artifacts exist; baseline and final coverage use the same source denominator; added tests pass or are explicit expected failures; a fresh independent review checks findings, test isolation and scope. Findings include exact reproduction, expected/actual, evidence and fixes. Default suites remain green. PR/remote CI is owned by the orchestrator and pending at writing. No full framework service, live API schema freshness, server-side auth matrix, delivery channels, production billing, browser app or performance/load infrastructure is in scope.
+
+{
+  "name": "sentinel-oversight",
+  "version": "0.1.0",
+  "description": "Human-in-the-loop approval for AI agent actions — one wrapper, magic-link approve/reject.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./langchain": {
+      "import": "./dist/adapters/langchain.js",
+      "types": "./dist/adapters/langchain.d.ts"
+    },
+    "./mastra": {
+      "import": "./dist/adapters/mastra.js",
+      "types": "./dist/adapters/mastra.d.ts"
+    },
+    "./ai-sdk": {
+      "import": "./dist/adapters/ai-sdk.js",
+      "types": "./dist/adapters/ai-sdk.d.ts"
+    },
+    "./openai-agents": {
+      "import": "./dist/adapters/openai-agents.js",
+      "types": "./dist/adapters/openai-agents.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs",
+    "smoke": "node tests/smoke.mjs",
+    "demo": "node examples/demo.mjs",
+    "gen:types": "openapi-typescript https://api.pauseapi.app/openapi.json -o src/generated/api.d.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "approval",
+    "human-in-the-loop",
+    "sentinel",
+    "agent-safety",
+    "llm",
+    "guardrails",
+    "oversight"
+  ],
+  "author": "Christopher Sellers / RegEngine, Inc.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PetrefiedThunder/sentinel-sdk-js"
+  },
+  "homepage": "https://pauseapi.app",
+  "bugs": "https://github.com/PetrefiedThunder/sentinel-sdk-js/issues",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "peerDependencies": {
+    "@openai/agents": ">=0.1.0",
+    "ai": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@openai/agents": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    }
+  },
+  "overrides": {
+    "undici": "^6.29.0"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^11.0.1",
+    "@semantic-release/github": "^12.0.9",
+    "@semantic-release/npm": "^13.1.5",
+    "@semantic-release/release-notes-generator": "^14.1.1",
+    "@types/node": "^26.4.1",
+    "conventional-changelog-conventionalcommits": "^10.2.1",
+    "openapi-typescript": "^7.4.0",
+    "semantic-release": "^25.0.9",
+    "typescript": "^5.5.0"
+  }
+}
+

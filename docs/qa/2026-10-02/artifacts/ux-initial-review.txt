@@ -1,0 +1,403 @@
+Start: 2026-10-03T01:41:20+00:00
+End: 2026-10-03T01:41:20+00:00
+Command: python3 -c 'from pathlib import Path; paths=["docs/qa/2026-10-02/PLAN.md","docs/qa/2026-10-02/run.py","package.json","README.md"]; [(print("\nFILE: "+p),print(Path(p).read_text())) for p in paths]'
+Exit: 0
+
+
+FILE: docs/qa/2026-10-02/PLAN.md
+# QA plan — Sentinel JavaScript SDK — 2026-10-02
+
+PR: opened by orchestrator
+CI status: pending at time of writing
+
+## Scope and controls
+
+Worktree: `/Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js`; branch: `qa/2026-10-02-sweep`; starting commit: `717392b`. Remote identity: `PetrefiedThunder/sentinel-sdk-js`. Initial working tree clean. This is a Node.js/TypeScript SDK, not RegEngine and not a web app. No local repository AGENTS.md was found. The ancestor `/Users/sellers/AGENTS.md` contains stale RegEngine guidance; current session instructions govern this SDK task.
+
+Only tests, QA test configuration and documentation will change. No product fixes, commits, pushes, PR API calls, deployments, environment files, credentials, remote services or databases. Network is restricted to public dependency/package metadata installation. Tests use synthetic data and mocked fetch or loopback servers. The logging runner passes only basic process variables to commands and does not forward service credentials. No live smoke/demo or schema-refresh commands will run.
+
+UTC timestamps fall on October 3 while the requested Los Angeles QA date is October 2. Every pass has a separate log; SESSION-LOG.md indexes and consolidates commands, failures, charters and edits. Artifacts are text/JSON reports. UI screenshots would misrepresent an SDK and are not applicable.
+
+## Repository map
+
+| Area | Surface | Main risk |
+| --- | --- | --- |
+| `src/index.ts` | Client, approval wrapper, polling, global configuration, pagination, audit/usage requests | Unapproved or duplicate execution; wrong client; hangs; transport errors |
+| `src/adapters/{ai-sdk,openai-agents,langchain,mastra}.ts` | Four framework integrations | Approval bypass, changed tool arguments, broken package interoperability |
+| `src/generated/api.d.ts`, `src/generated/index.ts` | Checked-in OpenAPI-derived contracts | Drift between hand-written wire shapes and checked-in contract |
+| `tests/*.mjs` | Node built-in unit tests; separate live smoke | Gaps in negative paths, adapter coverage and execution safety |
+| `package.json`, `tsconfig.json`, lockfile | ESM exports, declarations, package contents, Node compatibility | Consumers cannot install, import or compile |
+| `README.md`, `CONTRIBUTING.md`, `examples/demo.mjs` | Installation, quickstart, examples, API discoverability | Copied examples fail, unsafe assumptions, unclear recovery |
+| `.github/workflows/` | Existing verification configuration (read only) | New QA checks not exercised by existing CI |
+
+## Risk ranking
+
+Impact and likelihood use 1–5 scales; score is impact × likelihood. Ranking is initial and will be revised only with evidence.
+
+| Rank | Risk | Impact | Likelihood | Score |
+| --- | --- | ---: | ---: | ---: |
+| 1 | Wrapped action executes without the exact approved intent or more than once | 5 | 4 | 20 |
+| 2 | Polling/HTTP timeout, failure or malformed response leaves work hanging or unsafe | 5 | 4 | 20 |
+| 3 | Framework adapter changes/bypasses approval or tool behavior | 5 | 3 | 15 |
+| 4 | Credentials/client context leak across concurrent requests or reconfiguration | 5 | 3 | 15 |
+| 5 | Published exports/types/examples fail in supported consumers | 4 | 3 | 12 |
+| 6 | Serialization, query boundaries or contract drift misrepresent requests | 4 | 3 | 12 |
+| 7 | Dependency supply chain and accidental sensitive package content | 4 | 2 | 8 |
+| 8 | Error messages and docs prevent diagnosis or misstate safety guarantees | 3 | 3 | 9 |
+
+## Three passes and methods
+
+1. **Backend QA → SDK core transport and safety.** Establish the unmodified suite with V8 coverage, build and strict typecheck. Use boundary/equivalence cases, deterministic seeded generated cases, auth-header/client-isolation matrices, idempotency/concurrency probes, error and cancellation probes, and offline checks against the checked-in schema. Review OWASP API risks at the SDK boundary; server authorization cannot be established here. These methods target the highest-impact fail-closed behavior with reproducible fast tests rather than production integration.
+2. **Frontend QA → package and framework consumer integration.** There is no DOM/UI. Verify the npm artifact, ESM exports/declarations, supported Node assumptions and adapter behavior with stubbed tools; build/typecheck and isolated consumer smoke tests replace application build and browser E2E. Cross-browser, Lighthouse, console/network UI checks and screenshots are not applicable. Use dependency audit via public npm metadata. A frontend lint command will be checked for availability; no speculative lint policy will be added.
+3. **UX QA → developer experience.** Walk through README install/quickstart/API examples, discoverability, error recovery and async states using local stubs; assess Nielsen heuristics adapted to an SDK (feedback, consistency, control, prevention, recovery, documentation). WCAG/axe, keyboard/screen reader, responsive layouts and screenshot requirements do not apply without UI. Retain executable transcript evidence instead.
+
+Each pass has one or more 15–20 minute exploratory charters with UTC start/end and outcomes. Passes may run concurrently as independent workstreams, with distinct logs and file ownership. Baseline coverage is captured before new QA tests. The test pyramid is primarily unit/negative-path tests, a smaller set of real loopback HTTP/package integration tests, and no live production end-to-end tests. Bugs are documented and retained as expected-failure/TODO tests keyed to finding IDs; product behavior stays unchanged. Tests must never contact the SDK's production default URL.
+
+## Acceptance and exclusions
+
+All five mandatory documents, separate pass logs and reproducible artifacts exist; baseline and final coverage use the same source denominator; added tests pass or are explicit expected failures; a fresh independent review checks findings, test isolation and scope. Findings include exact reproduction, expected/actual, evidence and fixes. Default suites remain green. PR/remote CI is owned by the orchestrator and pending at writing. No full framework service, live API schema freshness, server-side auth matrix, delivery channels, production billing, browser app or performance/load infrastructure is in scope.
+
+
+FILE: docs/qa/2026-10-02/run.py
+#!/usr/bin/env python3
+"""Run a QA command with an isolated environment and timestamped, redacted evidence."""
+import datetime
+import json
+import os
+import pathlib
+import re
+import shlex
+import subprocess
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent
+
+def now():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
+
+def redact(text):
+    patterns = [
+        r'(?i)(Bearer\s+)[A-Za-z0-9_.-]{12,}',
+        r'\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|npm_[A-Za-z0-9]{20,}|sk-(?:live-|test-|proj-)?[A-Za-z0-9_-]{20,})',
+        r'(?s)-----BEGIN [^-]*PRIVATE KEY-----.*?-----END [^-]*PRIVATE KEY-----',
+    ]
+    for pattern in patterns:
+        text = re.sub(pattern, '[REDACTED]', text)
+    return text
+
+group, label, *command = sys.argv[1:]
+if group not in ('coord', 'backend', 'frontend', 'ux', 'review') or not command:
+    raise SystemExit('usage: run.py {coord,backend,frontend,ux,review} label command ...')
+label = re.sub(r'[^a-zA-Z0-9_-]', '-', label)
+start = now()
+# Never forward service credentials to tests or package subprocesses.
+env = {key: os.environ[key] for key in ('PATH', 'HOME', 'TMPDIR', 'TMP', 'TEMP', 'SYSTEMROOT') if key in os.environ}
+env.update({'CI': 'true', 'NO_COLOR': '1', 'NPM_CONFIG_USERCONFIG': '/dev/null',
+            'NPM_CONFIG_GLOBALCONFIG': '/private/tmp/sentinel-qa-unused-global-npmrc', 'NPM_CONFIG_CACHE': '/private/tmp/sentinel-qa-npm-cache',
+            'NPM_CONFIG_REGISTRY': 'https://registry.npmjs.org'})
+try:
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, text=True, errors='replace', timeout=600)
+    output, code = result.stdout, result.returncode
+except subprocess.TimeoutExpired as error:
+    output = (error.stdout or b'').decode(errors='replace') if isinstance(error.stdout, bytes) else (error.stdout or '')
+    output += '\nQA runner stopped command after 600 seconds.\n'
+    code = 124
+except OSError as error:
+    output, code = str(error), 127
+end = now()
+artifact = ROOT / 'artifacts' / f'{group}-{label}.txt'
+command_text = redact(shlex.join(command))
+artifact.write_text(f'Start: {start}\nEnd: {end}\nCommand: {command_text}\nExit: {code}\n\n' + redact(output))
+entry = f'\n### {start} — {label}\n\nCommand: `{command_text}`\n\nEnd: {end}. Exit: {code}. Evidence: [output](artifacts/{artifact.name}).\n'
+with (ROOT / f'{group.upper()}-LOG.md').open('a') as file:
+    file.write(entry)
+with (ROOT / 'artifacts' / f'{group}-commands.jsonl').open('a') as file:
+    file.write(json.dumps({'start':start,'end':end,'command':command_text,'exit':code,'artifact':artifact.name}) + '\n')
+print(f'{start} → {end} | {group}/{label} | exit {code} | {artifact.relative_to(ROOT)}')
+print(redact(output))
+raise SystemExit(code)
+
+
+FILE: package.json
+{
+  "name": "sentinel-oversight",
+  "version": "0.1.0",
+  "description": "Human-in-the-loop approval for AI agent actions — one wrapper, magic-link approve/reject.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./langchain": {
+      "import": "./dist/adapters/langchain.js",
+      "types": "./dist/adapters/langchain.d.ts"
+    },
+    "./mastra": {
+      "import": "./dist/adapters/mastra.js",
+      "types": "./dist/adapters/mastra.d.ts"
+    },
+    "./ai-sdk": {
+      "import": "./dist/adapters/ai-sdk.js",
+      "types": "./dist/adapters/ai-sdk.d.ts"
+    },
+    "./openai-agents": {
+      "import": "./dist/adapters/openai-agents.js",
+      "types": "./dist/adapters/openai-agents.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs",
+    "smoke": "node tests/smoke.mjs",
+    "demo": "node examples/demo.mjs",
+    "gen:types": "openapi-typescript https://api.pauseapi.app/openapi.json -o src/generated/api.d.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "approval",
+    "human-in-the-loop",
+    "sentinel",
+    "agent-safety",
+    "llm",
+    "guardrails",
+    "oversight"
+  ],
+  "author": "Christopher Sellers / RegEngine, Inc.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PetrefiedThunder/sentinel-sdk-js"
+  },
+  "homepage": "https://pauseapi.app",
+  "bugs": "https://github.com/PetrefiedThunder/sentinel-sdk-js/issues",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "peerDependencies": {
+    "@openai/agents": ">=0.1.0",
+    "ai": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@openai/agents": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    }
+  },
+  "overrides": {
+    "undici": "^6.29.0"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^11.0.1",
+    "@semantic-release/github": "^12.0.9",
+    "@semantic-release/npm": "^13.1.5",
+    "@semantic-release/release-notes-generator": "^14.1.1",
+    "@types/node": "^26.4.1",
+    "conventional-changelog-conventionalcommits": "^10.2.1",
+    "openapi-typescript": "^7.4.0",
+    "semantic-release": "^25.0.9",
+    "typescript": "^5.5.0"
+  }
+}
+
+
+FILE: README.md
+# Sentinel SDK for JavaScript / TypeScript
+
+[![npm version](https://img.shields.io/badge/npm-coming%20soon-lightgrey.svg)](https://github.com/PetrefiedThunder/sentinel-sdk-js)
+[![Node](https://img.shields.io/badge/node-%E2%89%A518.17-brightgreen.svg)](https://nodejs.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Status](https://img.shields.io/badge/status-public%20beta-blue.svg)](https://pauseapi.app)
+
+**Human-in-the-loop approval for AI agents.**
+
+One wrapper. Your function pauses execution, a human gets an email with
+Approve/Reject buttons, and the function only runs once they click Approve.
+
+> ⚠️ **The JS/TS SDK is pre-release — not yet published on npm.**
+> Install directly from git until the first npm release:
+>
+> ```bash
+> npm install github:PetrefiedThunder/sentinel-sdk-js
+> ```
+>
+> `npm install sentinel-oversight` (below) will work once the package is
+> published.
+
+```bash
+# coming soon — not yet on npm
+npm install sentinel-oversight
+```
+
+## Quick start
+
+```typescript
+import { configure, oversight } from 'sentinel-oversight';
+
+configure({ apiKey: process.env.SENTINEL_API_KEY! });
+
+const wireTransfer = oversight(
+  { riskLevel: 'high', approvers: ['alice@acme.com'] },
+  async (amountCents: number, recipient: string) => {
+    return stripe.transfers.create({
+      amount: amountCents,
+      destination: recipient,
+    });
+  }
+);
+
+// When the agent calls this:
+await wireTransfer(50_000_00, 'acct_acme_corp');
+// 1. Sentinel pauses execution.
+// 2. alice@acme.com gets an email with Approve / Reject.
+// 3. On Approve → stripe.transfers.create runs, return value flows back.
+// 4. On Reject  → ApprovalRejected thrown.
+// 5. On timeout → ApprovalTimeout thrown.
+```
+
+## What you get
+
+- **One wrapper** — `oversight({...}, fn)` returns a new fn with the same signature
+- **Magic-link approval** — signed HMAC tokens on Approve / Reject buttons
+- **Postgres LISTEN/NOTIFY** — sub-100 ms decision propagation; the wait is real-time
+- **Hash-chained audit log** — every approval is immutably recorded
+- **Sync + async** — works with both plain functions and Promise-returning ones
+- **Zero deps** — uses native `fetch`, no axios / undici tax
+
+## Approvers
+
+Each entry in `approvers: [...]` is a string. Format determines the channel.
+
+| Format | Channel |
+|---|---|
+| `alice@acme.com` | Email (default) |
+| `mailto:alice@acme.com` | Email (explicit) |
+| `sms:+15551234567` | SMS (requires registered consent) |
+
+Mix as needed; every approver gets a notification, **first decision wins**.
+
+## Risk levels
+
+`riskLevel`: `'low' \| 'medium' \| 'high' \| 'critical'`. Used by the dashboard
+for prioritization.
+
+## Errors
+
+```typescript
+import {
+  SentinelError,
+  SentinelConfigError,
+  SentinelAPIError,
+  ApprovalRejected,
+  ApprovalTimeout,
+} from 'sentinel-oversight';
+
+try {
+  await wireTransfer(50_000_00, 'acct_xyz');
+} catch (e) {
+  if (e instanceof ApprovalRejected) {
+    console.log('Rejected:', e.reason);
+  } else if (e instanceof ApprovalTimeout) {
+    console.log('No decision in time:', e.actionId);
+  } else if (e instanceof SentinelAPIError) {
+    console.log(`API ${e.statusCode}:`, e.message);
+  }
+}
+```
+
+## Idempotency
+
+Pass `idempotencyKey` to make approval creation safe to retry — the same
+(tenant, key) replays the original response without creating duplicate
+approvals or firing duplicate notifications. Same key with a different body
+returns a 409. A string is used as-is; a function is called once per
+invocation.
+
+```typescript
+const wireTransfer = oversight(
+  { riskLevel: 'high', idempotencyKey: () => crypto.randomUUID() },
+  async (amountCents: number, recipient: string) => { /* ... */ }
+);
+
+// or directly:
+await client.createApproval({
+  functionName: 'wireTransfer',
+  arguments: { amountCents: 50_000_00 },
+  idempotencyKey: '[REDACTED: synthetic idempotency example]',
+});
+```
+
+## Listing & pagination
+
+`listApprovals` returns one page (`{ data, hasMore, nextCursor }`);
+`iterApprovals` walks every page for you. Audit events:
+`listAuditEventsPage` with the same shape.
+
+```typescript
+const page = await client.listApprovals({ status: 'pending', limit: 20 });
+// page.data, page.hasMore, page.nextCursor
+
+for await (const approval of client.iterApprovals({ status: 'pending' })) {
+  console.log(approval.action_id, approval.status);
+}
+```
+
+## Tenant settings
+
+```typescript
+import { SentinelClient } from 'sentinel-oversight';
+
+const client = new SentinelClient({ apiKey: process.env.SENTINEL_API_KEY! });
+
+await client.setDefaultApprovers(['ops@acme.com', 'sms:+15551234567']);
+// now any oversight() call without `approvers` falls back to these
+```
+
+## Configuration
+
+| Option | Default | Description |
+|---|---|---|
+| `apiKey` | _required_ | Your tenant API key (sk_live_…) |
+| `apiUrl` | `https://api.pauseapi.app` | Backend URL |
+| `timeoutSeconds` | `300` | Default approval timeout |
+
+## Audit log
+
+```typescript
+const events = await client.listAuditEvents('act_abc123');
+// each event has prev_hash + event_hash (SHA-256), verifiable chain
+```
+
+## Examples
+
+Clone runnable examples:
+
+```bash
+git clone https://github.com/PetrefiedThunder/sentinel-examples
+```
+
+## Links
+
+- Website: [pauseapi.app](https://pauseapi.app)
+- Dashboard: [app.pauseapi.app](https://app.pauseapi.app)
+- Python SDK: [sentinel-oversight on PyPI](https://pypi.org/project/sentinel-oversight/)
+- API source: [github.com/PetrefiedThunder/sentinel-api](https://github.com/PetrefiedThunder/sentinel-api)
+
+## License
+
+MIT — © RegEngine, Inc.
+

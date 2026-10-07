@@ -1,0 +1,37 @@
+Start: 2026-10-03T01:41:10+00:00
+End: 2026-10-03T01:41:10+00:00
+Command: rg --files -g '!package-lock.json' -g '!node_modules/**' -g '!dist/**' -g '!coverage/**' -g '!.env*'
+Exit: 0
+
+src/index.ts
+src/adapters/ai-sdk.ts
+src/adapters/langchain.ts
+src/adapters/openai-agents.ts
+src/adapters/mastra.ts
+src/generated/index.ts
+src/generated/README.md
+src/generated/api.d.ts
+SECURITY.md
+tsconfig.json
+examples/demo.mjs
+CONTRIBUTING.md
+package.json
+README.md
+docs/qa/2026-10-02/COORD-LOG.md
+docs/qa/2026-10-02/PLAN.md
+docs/qa/2026-10-02/artifacts/backend-source-inventory.txt
+docs/qa/2026-10-02/artifacts/backend-commands.jsonl
+docs/qa/2026-10-02/artifacts/coord-commands.jsonl
+docs/qa/2026-10-02/artifacts/coord-versions.txt
+docs/qa/2026-10-02/artifacts/backend-identity-and-plan.txt
+docs/qa/2026-10-02/run.py
+docs/qa/2026-10-02/BACKEND-LOG.md
+tests/ai-sdk.test.mjs
+tests/idempotency.test.mjs
+tests/openai-agents.test.mjs
+tests/pagination.test.mjs
+tests/serializable.test.mjs
+tests/timeout.test.mjs
+tests/smoke.mjs
+CHANGELOG.md
+LICENSE

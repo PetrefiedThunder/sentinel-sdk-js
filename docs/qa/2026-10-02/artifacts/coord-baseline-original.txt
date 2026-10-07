@@ -1,0 +1,49 @@
+Start: 2026-10-03T01:41:52+00:00
+End: 2026-10-03T01:41:53+00:00
+Command: npm test
+Exit: 0
+
+
+> sentinel-oversight@0.1.0 test
+> node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs
+
+✔ approved → original execute runs with original args (11.996875ms)
+✔ rejected → throws ApprovalRejected and never runs execute (0.489958ms)
+✔ non-object input is wrapped under {input} (0.289125ms)
+✔ gated does not mutate the original tool (0.15425ms)
+✔ gated throws on a tool without execute (0.135083ms)
+✔ gatedTools uses record keys as functionName (1.423917ms)
+✔ createApproval with idempotencyKey sends Idempotency-Key header (13.023292ms)
+✔ createApproval without idempotencyKey omits the header (0.310833ms)
+✔ wrap with function-valued idempotencyKey calls generator and sends header (0.439625ms)
+✔ approved → original invoke runs with original args (11.733375ms)
+✔ rejected → throws ApprovalRejected and never runs invoke (0.487833ms)
+✔ functionName overrides the tool name (0.280792ms)
+✔ non-JSON-object input is wrapped under {input} (0.30875ms)
+✔ gated does not mutate the original tool (0.925625ms)
+✔ gated throws on a tool without invoke (0.122042ms)
+✔ gatedTools wraps each tool and keeps its own name (0.54825ms)
+✔ listApprovals sends limit, status, cursor and maps envelope to PageResult (12.368625ms)
+✔ listApprovals defaults limit to 50 and omits absent params (0.285917ms)
+✔ iterApprovals walks pages via nextCursor and yields items in order (0.401667ms)
+✔ listAuditEventsPage sends action_id/limit/cursor and maps fields (0.285542ms)
+✔ plain dict ok (0.368375ms)
+✔ nested dict ok (0.05675ms)
+✔ primitives ok (0.587791ms)
+✔ BigInt raises TypeError (0.234958ms)
+✔ circular reference raises TypeError (3.513125ms)
+✔ nested unserializable raises TypeError (0.083667ms)
+✔ createApproval rounds a fractional timeout down to the nearest int (11.895709ms)
+✔ createApproval rounds a fractional timeout up to the nearest int (0.250917ms)
+✔ createApproval clamps a sub-second timeout to a minimum of 1 (0.199917ms)
+✔ createApproval leaves an integer timeout unchanged (0.22575ms)
+✔ createApproval coerces the client default timeout to an int (0.188459ms)
+✔ wrap forwards a fractional timeout as an int on the POST body (0.411ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 60.34175

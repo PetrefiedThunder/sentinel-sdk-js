@@ -1,0 +1,5 @@
+Start: 2026-10-03T01:44:40+00:00
+End: 2026-10-03T01:44:40+00:00
+Command: git archive --format=tar --output=/private/tmp/sentinel-qa-clean-source.tar HEAD
+Exit: 0
+

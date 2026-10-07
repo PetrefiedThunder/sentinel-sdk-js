@@ -1,0 +1,11 @@
+Start: 2026-10-03T01:45:46+00:00
+End: 2026-10-03T01:45:46+00:00
+Command: python3 -c 'from pathlib import Path; import json; root=Path("/private/tmp/sentinel-qa-tools/node_modules"); print(json.dumps({name: json.loads((root/name/"package.json").read_text())["version"] for name in ["ai", "@openai/agents", "@langchain/core", "zod"]},indent=2))'
+Exit: 0
+
+{
+  "ai": "7.0.127",
+  "@openai/agents": "0.18.0",
+  "@langchain/core": "1.2.14",
+  "zod": "4.6.5"
+}

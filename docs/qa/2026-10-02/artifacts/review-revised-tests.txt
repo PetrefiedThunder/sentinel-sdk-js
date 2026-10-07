@@ -1,0 +1,184 @@
+Start: 2026-10-03T01:48:42+00:00
+End: 2026-10-03T01:48:42+00:00
+Command: python3 -c 'from pathlib import Path; pairs=[("tests/qa/backend-core.test.mjs",250,310),("tests/qa/frontend-langchain.integration.test.mjs",1,100)]; [(print("FILE "+p),print("\n".join(f"{i}: {line}" for i,line in enumerate(Path(p).read_text().splitlines(),1) if a<=i<=b))) for p,a,b in pairs]; print("NEW FILES"); print("\n".join(str(p) for p in Path("tests/qa").glob("*"))); print("NODE TOTALS"); [(print(str(p)),print("\n".join(line for line in p.read_text().splitlines() if any(x in line for x in ["Command:", "Exit:", "ℹ tests ", "ℹ pass ", "ℹ fail ", "ℹ skipped ", "ℹ todo ", "# tests ", "# pass ", "# fail ", "# skipped ", "# todo "])))) for p in Path("docs/qa/2026-10-02/artifacts").glob("coord-final-node*.txt")]'
+Exit: 0
+
+FILE tests/qa/backend-core.test.mjs
+250:     await makeClient().wrap({}, () => { executed = true; })(value).catch((error) => {
+251:       assert.ok(error instanceof TypeError);
+252:     });
+253:     if (executed) accepted.push(Object.keys(value)[0]);
+254:   }
+255:   assert.deepEqual(accepted, [], 'silently omitted or changed data must not execute under a different approved payload');
+256:   assert.equal(requests.length, 0);
+257: });
+258: 
+259: test('BE-004: legacy fallback polling must be paced', { todo: 'BE-004 no delay between 404/pending poll attempts' }, async () => {
+260:   let now = 1000;
+261:   Date.now = () => now;
+262:   respond(({ url }, number) => {
+263:     // The sixth request terminates an unpaced loop; no socket or timer is used.
+264:     return url.includes('/wait?') ? json({ detail: 'No wait route' }, 404) : json(number >= 6 ? approved : pending);
+265:   });
+266:   const result = makeClient().waitForDecision('qa-action', 1).catch((error) => error);
+267:   // Flush async fetch/JSON microtasks while deliberately never yielding to timers.
+268:   for (let index = 0; index < 200; index++) await Promise.resolve();
+269:   const beforeTimerTurn = requests.length;
+270:   now = 3000; // A paced implementation can exit at its next deadline check.
+271:   await result;
+272:   assert.ok(beforeTimerTurn <= 2, `${beforeTimerTurn} requests ran before a timer/event-loop turn; fallback must be paced`);
+273: });
+274: 
+275: test('BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions', { timeout: 5000 }, async (t) => {
+276:   const wire = [];
+277:   const server = createServer(async (request, response) => {
+278:     let body = '';
+279:     for await (const chunk of request) body += chunk;
+280:     wire.push({ method: request.method, path: request.url, headers: request.headers, body });
+281:     response.setHeader('Content-Type', 'application/json');
+282:     if (request.headers.authorization !== '[REDACTED]') {
+283:       response.writeHead(403).end(JSON.stringify({ detail: 'Synthetic permission denied' }));
+284:     } else {
+285:       response.end(JSON.stringify(request.method === 'POST' ? pending : approved));
+286:     }
+287:   });
+288:   await new Promise((resolve, reject) => {
+289:     server.once('error', reject);
+290:     server.listen(0, '127.0.0.1', resolve);
+291:   });
+292:   t.after(async () => {
+293:     server.closeAllConnections();
+294:     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+295:   });
+296:   const address = server.address();
+297:   const localUrl = `http://127.0.0.1:${address.port}`;
+298:   globalThis.fetch = (url, init) => {
+299:     assert.equal(new URL(url).origin, localUrl, 'only the ephemeral loopback server may receive real requests');
+300:     return originalFetch(url, init);
+301:   };
+302:   let allowedExecutions = 0;
+303:   let deniedExecutions = 0;
+304:   const allowed = makeClient({ apiKey: 'qa-loopback-allowed', apiUrl: localUrl });
+305:   const denied = makeClient({ apiKey: 'qa-loopback-denied', apiUrl: localUrl });
+306:   await Promise.all([
+307:     allowed.wrap({ functionName: 'qaContract', idempotencyKey: 'qa-loopback-id', timeoutSeconds: 30.5 }, (args) => {
+308:       allowedExecutions++;
+309:       return args.amount;
+310:     })({ amount: 42 }),
+FILE tests/qa/frontend-langchain.integration.test.mjs
+1: import { test } from 'node:test';
+2: import assert from 'node:assert/strict';
+3: import { createRequire } from 'node:module';
+4: import { pathToFileURL } from 'node:url';
+5: import { SentinelCallbackHandler } from '../../dist/adapters/langchain.js';
+6: import { ApprovalRejected, ApprovalTimeout } from '../../dist/index.js';
+7: 
+8: // Optional real-framework integration. The QA run installed @langchain/core
+9: // 1.2.14 outside the repo and supplied this non-secret package-directory path.
+10: // Default npm test skips this group when that optional dependency is absent.
+11: let DynamicTool;
+12: const path = process.env.SENTINEL_QA_LANGCHAIN_ROOT;
+13: if (path) {
+14:   // An explicit test fixture path must work; do not mask a broken installation.
+15:   ({ DynamicTool } = await import(pathToFileURL(`${path}/dist/tools/index.js`).href));
+16: } else {
+17:   let installed = true;
+18:   try { createRequire(import.meta.url).resolve('@langchain/core/tools'); }
+19:   catch (error) {
+20:     if (error.code !== 'MODULE_NOT_FOUND') throw error;
+21:     installed = false;
+22:   }
+23:   if (installed) ({ DynamicTool } = await import('@langchain/core/tools'));
+24: }
+25: const optional = { skip: !DynamicTool && 'Optional @langchain/core is not installed; see FRONTEND-REPORT.md' };
+26: 
+27: function setup(decision, overrides = {}) {
+28:   const observed = { approvals: 0, executions: 0 };
+29:   const handler = new SentinelCallbackHandler({
+30:     client: {
+31:       async createApproval() {
+32:         observed.approvals++;
+33:         return { action_id: 'qa-action' };
+34:       },
+35:       async waitForDecision() {
+36:         if (decision instanceof Error) throw decision;
+37:         return { action_id: 'qa-action', status: decision, decision };
+38:       },
+39:     },
+40:   });
+41:   Object.assign(handler, overrides);
+42:   const tool = new DynamicTool({
+43:     name: 'qa_action',
+44:     description: 'Synthetic local counter; no service calls',
+45:     func: async () => {
+46:       observed.executions++;
+47:       return 'local-result';
+48:     },
+49:   });
+50:   return { observed, invoke: () => tool.invoke('synthetic input', { callbacks: [handler] }) };
+51: }
+52: 
+53: test('FE-001 real LangChain tool requests approval before executing', { ...optional, todo: 'FE-001: ignoreAgent=true skips handleToolStart completely' }, async () => {
+54:   const { observed, invoke } = setup('approved');
+55:   assert.equal(await invoke(), 'local-result');
+56:   assert.equal(observed.executions, 1);
+57:   assert.equal(observed.approvals, 1);
+58: });
+59: 
+60: for (const decision of ['rejected', new ApprovalTimeout('qa-action', 1)]) {
+61:   const label = typeof decision === 'string' ? 'rejection' : 'timeout';
+62:   const ErrorClass = typeof decision === 'string' ? ApprovalRejected : ApprovalTimeout;
+63: 
+64:   test(`FE-001 real LangChain ${label} blocks execution`, { ...optional, todo: 'FE-001: callback is skipped; absent raiseError also swallows errors' }, async () => {
+65:     const { observed, invoke } = setup(decision);
+66:     await assert.rejects(invoke, ErrorClass);
+67:     assert.equal(observed.executions, 0);
+68:   });
+69: 
+70:   test(`FE-001 enabling callback alone still swallows ${label}`, { ...optional, todo: 'FE-001: raiseError must also be true' }, async () => {
+71:     const { observed, invoke } = setup(decision, { ignoreAgent: false });
+72:     await assert.rejects(invoke, ErrorClass);
+73:     assert.equal(observed.approvals, 1);
+74:     assert.equal(observed.executions, 0);
+75:   });
+76: 
+77:   test(`LangChain control: callback enabled and raiseError propagates ${label}`, optional, async () => {
+78:     const { observed, invoke } = setup(decision, { ignoreAgent: false, raiseError: true });
+79:     await assert.rejects(invoke, ErrorClass);
+80:     assert.equal(observed.approvals, 1);
+81:     assert.equal(observed.executions, 0);
+82:   });
+83: }
+84: 
+85: test('LangChain control: callback enabled and approval allows one execution', optional, async () => {
+86:   const { observed, invoke } = setup('approved', { ignoreAgent: false, raiseError: true });
+87:   assert.equal(await invoke(), 'local-result');
+88:   assert.equal(observed.approvals, 1);
+89:   assert.equal(observed.executions, 1);
+90: });
+NEW FILES
+tests/qa/frontend-adapters.test.mjs
+tests/qa/frontend-consumer.mts
+tests/qa/frontend-consumer-control.mts
+tests/qa/frontend-langchain.integration.test.mjs
+tests/qa/backend-core.test.mjs
+tests/qa/frontend-framework-runtime.mjs
+tests/qa/ux-docs.test.mjs
+tests/qa/frontend-framework-types.mts
+NODE TOTALS
+docs/qa/2026-10-02/artifacts/coord-final-node24.txt
+Command: env SENTINEL_QA_LANGCHAIN_ROOT=/private/tmp/sentinel-qa-tools/node_modules/@langchain/core npm exec --yes --package=node@24 -- node --test tests/ai-sdk.test.mjs tests/idempotency.test.mjs tests/openai-agents.test.mjs tests/pagination.test.mjs tests/serializable.test.mjs tests/timeout.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs
+Exit: 0
+ℹ tests 110
+ℹ pass 86
+ℹ fail 0
+ℹ skipped 0
+ℹ todo 24
+docs/qa/2026-10-02/artifacts/coord-final-node18.txt
+Command: npm exec --yes --package=node@18.17.1 -- node --test tests/ai-sdk.test.mjs tests/idempotency.test.mjs tests/openai-agents.test.mjs tests/pagination.test.mjs tests/serializable.test.mjs tests/timeout.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs
+Exit: 1
+# tests 110
+# pass 83
+# fail 0
+# skipped 8
+# todo 19

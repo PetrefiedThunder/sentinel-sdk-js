@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:53:09+00:00
+End: 2026-10-03T01:53:09+00:00
+Command: python3 -
+Exit: 0
+
+Redacted the scanner-confirmed synthetic example in captured source artifacts: 7

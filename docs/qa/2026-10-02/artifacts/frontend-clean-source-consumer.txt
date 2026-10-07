@@ -1,0 +1,7 @@
+Start: 2026-10-03T01:44:50+00:00
+End: 2026-10-03T01:44:50+00:00
+Command: npm install --prefix /private/tmp/sentinel-qa-clean-consumer --offline --ignore-scripts --no-audit --no-fund /private/tmp/sentinel-oversight-0.1.0.tgz
+Exit: 0
+
+
+added 1 package in 144ms

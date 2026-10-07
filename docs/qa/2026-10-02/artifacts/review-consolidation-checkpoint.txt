@@ -1,0 +1,37 @@
+Start: 2026-10-03T01:48:31+00:00
+End: 2026-10-03T01:48:31+00:00
+Command: python3 -c 'from pathlib import Path; import subprocess; print(subprocess.run(["git","diff","--","package.json"],capture_output=True,text=True).stdout); print("REPORTS"); print("\n".join(str(p) for p in Path("docs/qa/2026-10-02").glob("*.md"))); print("RUNTIME EVIDENCE"); print("\n".join(str(p) for p in Path("docs/qa/2026-10-02/artifacts").glob("*.txt") if any(s in p.name for s in ("node18", "node24", "node-18", "node-24"))))'
+Exit: 0
+
+diff --git a/package.json b/package.json
+index e94505c..f5396a0 100644
+--- a/package.json
++++ b/package.json
+@@ -35,7 +35,7 @@
+   "scripts": {
+     "build": "tsc -p tsconfig.json",
+     "typecheck": "tsc --noEmit -p tsconfig.json",
+-    "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs",
++    "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs",
+     "smoke": "node tests/smoke.mjs",
+     "demo": "node examples/demo.mjs",
+     "gen:types": "openapi-typescript https://api.pauseapi.app/openapi.json -o src/generated/api.d.ts",
+
+REPORTS
+docs/qa/2026-10-02/BACKEND-LOG.md
+docs/qa/2026-10-02/DEPENDENCY-REPORT.md
+docs/qa/2026-10-02/UX-REPORT.md
+docs/qa/2026-10-02/FRONTEND-REPORT.md
+docs/qa/2026-10-02/FRONTEND-LOG.md
+docs/qa/2026-10-02/UX-LOG.md
+docs/qa/2026-10-02/BACKEND-REPORT.md
+docs/qa/2026-10-02/BOOTSTRAP-LOG.md
+docs/qa/2026-10-02/PLAN.md
+docs/qa/2026-10-02/REVIEW.md
+docs/qa/2026-10-02/COORD-LOG.md
+docs/qa/2026-10-02/REVIEW-LOG.md
+RUNTIME EVIDENCE
+docs/qa/2026-10-02/artifacts/coord-node18-original.txt
+docs/qa/2026-10-02/artifacts/coord-node24-original.txt
+docs/qa/2026-10-02/artifacts/coord-final-node24.txt
+docs/qa/2026-10-02/artifacts/coord-final-node18.txt

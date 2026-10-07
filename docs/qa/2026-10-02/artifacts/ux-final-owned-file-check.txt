@@ -1,0 +1,16 @@
+Start: 2026-10-03T01:45:28+00:00
+End: 2026-10-03T01:45:28+00:00
+Command: python3 -c 'from pathlib import Path; files=["tests/qa/ux-docs.test.mjs","docs/qa/2026-10-02/UX-REPORT.md","docs/qa/2026-10-02/UX-LOG.md"]; [(print(f"{p}: {len(Path(p).read_text().splitlines())} lines"),print("trailing whitespace lines:",[i for i,line in enumerate(Path(p).read_text().splitlines(),1) if line.rstrip()!=line])) for p in files]; print("Expected-failure anchors:"); [(print(f"{i}: {line}")) for i,line in enumerate(Path(files[0]).read_text().splitlines(),1) if line.startswith("test(" ) and "UX-" in line]'
+Exit: 0
+
+tests/qa/ux-docs.test.mjs: 173 lines
+trailing whitespace lines: []
+docs/qa/2026-10-02/UX-REPORT.md: 43 lines
+trailing whitespace lines: []
+docs/qa/2026-10-02/UX-LOG.md: 77 lines
+trailing whitespace lines: []
+Expected-failure anchors:
+131: test('UX-001 README quickstart should send a recognizable action name', {
+138: test('UX-002 README Errors block should propagate transport failures', {
+151: test('UX-002 README Errors block should propagate the approved business operation failure', {
+163: test('UX-003 documented SDK version command should complete successfully', {

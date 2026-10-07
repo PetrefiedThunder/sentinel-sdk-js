@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:45:46+00:00
+End: 2026-10-03T01:45:46+00:00
+Command: python3 -c 'from pathlib import Path; import shutil; root=Path.cwd(); p=Path("/private/tmp/sentinel-qa-tools"); link=p/"node_modules/sentinel-oversight"; link.symlink_to(root) if not link.exists() else None; shutil.copyfile(root/"tests/qa/frontend-framework-types.mts",p/"frontend-framework-types.mts"); print("Created isolated package symlink and copied actual-framework TypeScript consumer")'
+Exit: 0
+
+Created isolated package symlink and copied actual-framework TypeScript consumer

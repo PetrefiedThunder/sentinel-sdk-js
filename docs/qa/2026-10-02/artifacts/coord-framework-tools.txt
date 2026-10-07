@@ -1,0 +1,7 @@
+Start: 2026-10-03T01:44:17+00:00
+End: 2026-10-03T01:44:19+00:00
+Command: npm install --prefix /private/tmp/sentinel-qa-tools --ignore-scripts --no-audit --no-fund --package-lock=false ai @openai/agents
+Exit: 0
+
+
+added 25 packages in 2s

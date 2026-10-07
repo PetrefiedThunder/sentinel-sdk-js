@@ -1,0 +1,10 @@
+Start: 2026-10-03T01:49:47+00:00
+End: 2026-10-03T01:49:47+00:00
+Command: python3 -
+Exit: 0
+
+tests/qa/backend-core.test.mjs
+tests/qa/frontend-adapters.test.mjs
+tests/qa/frontend-langchain.integration.test.mjs
+tests/qa/ux-docs.test.mjs
+Updated test-only expected-failure options; no normal controls or product behavior changed.

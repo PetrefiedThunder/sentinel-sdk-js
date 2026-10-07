@@ -1,0 +1,23 @@
+Start: 2026-10-03T01:42:37+00:00
+End: 2026-10-03T01:42:37+00:00
+Command: sh -c 'node -p "require(\"/private/tmp/sentinel-qa-tools/node_modules/c8/package.json\").version" && rg -n "all|src|exclude-after-remap|include|extension" /private/tmp/sentinel-qa-tools/node_modules/c8/README.md | head -70 && node -p "require(\"/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/package.json\").version"'
+Exit: 0
+
+12.0.0
+10:Like [nyc](https://github.com/istanbuljs/nyc), c8 just magically works:
+35:| `--all` | see [section below](#checking-for-full-source-coverage-using---all) for more info | `boolean` | `false` |
+36:| `--src` | see [section below](#checking-for-full-source-coverage-using---all) for more info | `Array<string>` | `[process.cwd()]`|
+37:| `-n`, `--include` | see [section below](#checking-for-full-source-coverage-using---all) for more info | `Array<string>` | `[]` (include all files) |
+38:| `-x`, `--exclude` | see [section below](#checking-for-full-source-coverage-using---all) for more info | `Array<string>` | [list](https://github.com/istanbuljs/schema/blob/master/default-exclude.js) |
+39:| `--exclude-after-remap` | see [section below](#exclude-after-remap) for more info | `boolean` | `false` |
+40:| `-e`, `--extension` | only files matching these extensions will show coverage | `string \| Array<string>` | [list](https://github.com/istanbuljs/schema/blob/master/default-extension.js) |
+48:## Checking for "full" source coverage using `--all`
+55:By supplying `--all` to c8, all files in directories specified with `--src` (defaults to `cwd`) that pass the `--include`
+75:`--exclude-after-remap` is used to control this behaviour.
+83:c8 can fail tests if coverage falls below a threshold.
+91:both run tests and check that coverage falls within the threshold provided:
+97:The above check fails if coverage falls below 100%.
+105:If you want to check for 100% coverage across all dimensions, use `--100`:
+134:NOTE: Monocart requires additional `monocart-coverage-reports` to be installed:
+168:### Ignoring all lines until told
+1.2.14

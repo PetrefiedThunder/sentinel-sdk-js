@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:52:31+00:00
+End: 2026-10-03T01:52:31+00:00
+Command: python3 -c 'from pathlib import Path; import json,re; root=Path("docs/qa/2026-10-02"); name="review-nonrepo-instruction-artifact-inventory.txt"; marker="rg -l [private non-repository instruction search expression omitted] docs/qa/2026-10-02/artifacts"; p=root/"artifacts"/name; p.write_text(re.sub(r"(?m)^Command: .*", "Command: "+marker, p.read_text())); p=root/"artifacts/review-commands.jsonl"; rows=[json.loads(line) for line in p.read_text().splitlines()]; [row.update(command=marker) for row in rows if row.get("artifact")==name]; p.write_text("".join(json.dumps(row)+"\n" for row in rows)); p=root/"REVIEW-LOG.md"; content=p.read_text(); a=content.index("— nonrepo-instruction-artifact-inventory"); b=content.find("\n### ",a); b=len(content) if b<0 else b; section=re.sub(r"(?m)^Command: .*", "Command: `"+marker+"`",content[a:b]); p.write_text(content[:a]+section+content[b:]); print("Private instruction search terms omitted from inventory command/artifact/log; matching artifact paths and timestamps preserved.")'
+Exit: 0
+
+Private instruction search terms omitted from inventory command/artifact/log; matching artifact paths and timestamps preserved.

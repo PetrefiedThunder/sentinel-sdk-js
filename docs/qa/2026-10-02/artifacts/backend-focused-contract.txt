@@ -1,0 +1,145 @@
+Start: 2026-10-03T01:41:31+00:00
+End: 2026-10-03T01:41:31+00:00
+Command: python3 -c 'import pathlib; p=pathlib.Path("src/generated/api.d.ts"); ls=p.read_text().splitlines(); [(print(f"{i+1}: {ls[i]}")) for start,end in [(503,529),(827,848),(925,965)] for i in range(start-1,end)]; p=pathlib.Path("README.md"); ls=p.read_text().splitlines(); [print(f"{i+1}: {ls[i]}") for i in range(55,104)]; print("dist exists",pathlib.Path("dist/index.js").exists())'
+Exit: 0
+
+503:         /** ApprovalCreate */
+504:         ApprovalCreate: {
+505:             /** Function Name */
+506:             function_name: string;
+507:             /**
+508:              * Arguments
+509:              * @default {}
+510:              */
+511:             arguments: {
+512:                 [key: string]: unknown;
+513:             };
+514:             /**
+515:              * Risk Level
+516:              * @default medium
+517:              */
+518:             risk_level: string;
+519:             /**
+520:              * Approvers
+521:              * @default []
+522:              */
+523:             approvers: string[];
+524:             /**
+525:              * Timeout Seconds
+526:              * @default 300
+527:              */
+528:             timeout_seconds: number;
+529:         };
+827:         };
+828:         requestBody: {
+829:             content: {
+830:                 "application/json": components["schemas"]["TenantSettingsUpdate"];
+831:             };
+832:         };
+833:         responses: {
+834:             /** @description Successful Response */
+835:             200: {
+836:                 headers: {
+837:                     [name: string]: unknown;
+838:                 };
+839:                 content: {
+840:                     "application/json": unknown;
+841:                 };
+842:             };
+843:             /** @description Validation Error */
+844:             422: {
+845:                 headers: {
+846:                     [name: string]: unknown;
+847:                 };
+848:                 content: {
+925:     wait_for_decision_v1_approvals__action_id__wait_get: {
+926:         parameters: {
+927:             query?: {
+928:                 /** @description Seconds to wait for a decision */
+929:                 timeout?: number;
+930:             };
+931:             header: {
+932:                 authorization: string;
+933:             };
+934:             path: {
+935:                 action_id: string;
+936:             };
+937:             cookie?: never;
+938:         };
+939:         requestBody?: never;
+940:         responses: {
+941:             /** @description Successful Response */
+942:             200: {
+943:                 headers: {
+944:                     [name: string]: unknown;
+945:                 };
+946:                 content: {
+947:                     "application/json": unknown;
+948:                 };
+949:             };
+950:             /** @description Validation Error */
+951:             422: {
+952:                 headers: {
+953:                     [name: string]: unknown;
+954:                 };
+955:                 content: {
+956:                     "application/json": components["schemas"]["HTTPValidationError"];
+957:                 };
+958:             };
+959:         };
+960:     };
+961:     get_approval_v1_approvals__action_id__get: {
+962:         parameters: {
+963:             query?: never;
+964:             header: {
+965:                 authorization: string;
+56: - **One wrapper** — `oversight({...}, fn)` returns a new fn with the same signature
+57: - **Magic-link approval** — signed HMAC tokens on Approve / Reject buttons
+58: - **Postgres LISTEN/NOTIFY** — sub-100 ms decision propagation; the wait is real-time
+59: - **Hash-chained audit log** — every approval is immutably recorded
+60: - **Sync + async** — works with both plain functions and Promise-returning ones
+61: - **Zero deps** — uses native `fetch`, no axios / undici tax
+62: 
+63: ## Approvers
+64: 
+65: Each entry in `approvers: [...]` is a string. Format determines the channel.
+66: 
+67: | Format | Channel |
+68: |---|---|
+69: | `alice@acme.com` | Email (default) |
+70: | `mailto:alice@acme.com` | Email (explicit) |
+71: | `sms:+15551234567` | SMS (requires registered consent) |
+72: 
+73: Mix as needed; every approver gets a notification, **first decision wins**.
+74: 
+75: ## Risk levels
+76: 
+77: `riskLevel`: `'low' \| 'medium' \| 'high' \| 'critical'`. Used by the dashboard
+78: for prioritization.
+79: 
+80: ## Errors
+81: 
+82: ```typescript
+83: import {
+84:   SentinelError,
+85:   SentinelConfigError,
+86:   SentinelAPIError,
+87:   ApprovalRejected,
+88:   ApprovalTimeout,
+89: } from 'sentinel-oversight';
+90: 
+91: try {
+92:   await wireTransfer(50_000_00, 'acct_xyz');
+93: } catch (e) {
+94:   if (e instanceof ApprovalRejected) {
+95:     console.log('Rejected:', e.reason);
+96:   } else if (e instanceof ApprovalTimeout) {
+97:     console.log('No decision in time:', e.actionId);
+98:   } else if (e instanceof SentinelAPIError) {
+99:     console.log(`API ${e.statusCode}:`, e.message);
+100:   }
+101: }
+102: ```
+103: 
+104: ## Idempotency
+dist exists False
