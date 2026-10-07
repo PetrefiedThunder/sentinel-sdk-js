@@ -1,0 +1,22 @@
+Start: 2026-10-03T01:46:18+00:00
+End: 2026-10-03T01:46:18+00:00
+Command: python3 -c 'from pathlib import Path; p=Path("docs/qa/2026-10-02/REVIEW-LOG.md"); text=p.read_text(); prefix="""# Independent QA evidence review log
+
+This review checks the three pass results and does not add a fourth QA group. Local review-pr and code-review skills were read; CodeRabbit remote API was excluded by the orchestrator network boundary.
+
+## Bootstrap commands before adopting the QA runner
+
+Approximate start 2026-10-03T01:44:30Z; exact per-command timestamps were not captured. Commands: `pwd` (exit 0), `git worktree list` (exit 0), `git branch --show-current` (exit 0), `git remote get-url origin` (exit 0), `cat docs/qa/2026-10-02/run.py` (exit 0), `cat /Users/sellers/.agents/skills/code-review/SKILL.md` (exit 0), `cat /Users/sellers/.codex/skills/review-pr/SKILL.md` (exit 0), and `rg --files -g AGENTS.md -g !node_modules -g !dist` (exit 1, no repository AGENTS.md). Identity verified requested checkout/branch and public sentinel-sdk-js origin. Identity was then rechecked through the runner at 01:45:36Z. No files were edited before this verification.
+
+## Review charter R-C1
+
+Start: approximately 2026-10-03T01:44:30Z. Time box: 15 minutes. Mission: independently verify each proposed high-risk finding, reproduce all TODO assertions, inspect offline execution boundaries and Node minimum-version compatibility, and challenge overclaims in reports. Expected result: QA-only diff with evidence-backed findings; original product defects remain unfixed.
+
+## Tool edit record
+
+2026-10-03T01:46:00Z (approximate): apply_patch added REVIEW.md with independent test evidence, severity assessments, packaging scope caveat and two requested test-config corrections. No source or test files were edited by the reviewer.
+
+"""; p.write_text(prefix+text); print("Recorded initial commands, charter, scope and reviewer document edit.")'
+Exit: 0
+
+Recorded initial commands, charter, scope and reviewer document edit.

@@ -1,0 +1,51 @@
+Start: 2026-10-03T01:48:45+00:00
+End: 2026-10-03T01:48:45+00:00
+Command: python3 -
+Exit: 0
+
+coord-final-default-tests.txt
+ℹ tests 110
+ℹ pass 83
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 8
+ℹ todo 19
+ℹ duration_ms 676.110666
+coord-coverage-after.txt
+ℹ tests 110
+ℹ pass 86
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 24
+ℹ duration_ms 2018.704833
+coord-final-node18.txt
+# tests 110
+# pass 83
+# fail 0
+# cancelled 0
+# skipped 8
+# todo 19
+# duration_ms 945.691875
+coord-final-node24.txt
+ℹ tests 110
+ℹ pass 86
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 24
+ℹ duration_ms 748.379834
+coverage-before-valid
+total {"lines": {"total": 967, "covered": 648, "skipped": 0, "pct": 67.01}, "statements": {"total": 967, "covered": 648, "skipped": 0, "pct": 67.01}, "functions": {"total": 37, "covered": 23, "skipped": 0, "pct": 62.16}, "branches": {"total": 92, "covered": 65, "skipped": 0, "pct": 70.65}, "branchesTrue": {"total": 0, "covered": 0, "skipped": 0, "pct": 100}}
+src/index.ts {"lines": {"total": 452, "covered": 373, "skipped": 0, "pct": 82.52}, "functions": {"total": 28, "covered": 16, "skipped": 0, "pct": 57.14}, "statements": {"total": 452, "covered": 373, "skipped": 0, "pct": 82.52}, "branches": {"total": 53, "covered": 38, "skipped": 0, "pct": 71.69}}
+src/adapters/ai-sdk.ts {"lines": {"total": 130, "covered": 130, "skipped": 0, "pct": 100}, "functions": {"total": 3, "covered": 3, "skipped": 0, "pct": 100}, "statements": {"total": 130, "covered": 130, "skipped": 0, "pct": 100}, "branches": {"total": 15, "covered": 12, "skipped": 0, "pct": 80}}
+src/adapters/langchain.ts {"lines": {"total": 131, "covered": 0, "skipped": 0, "pct": 0}, "functions": {"total": 1, "covered": 0, "skipped": 0, "pct": 0}, "statements": {"total": 131, "covered": 0, "skipped": 0, "pct": 0}, "branches": {"total": 1, "covered": 0, "skipped": 0, "pct": 0}}
+src/adapters/mastra.ts {"lines": {"total": 104, "covered": 0, "skipped": 0, "pct": 0}, "functions": {"total": 1, "covered": 0, "skipped": 0, "pct": 0}, "statements": {"total": 104, "covered": 0, "skipped": 0, "pct": 0}, "branches": {"total": 1, "covered": 0, "skipped": 0, "pct": 0}}
+src/adapters/openai-agents.ts {"lines": {"total": 150, "covered": 145, "skipped": 0, "pct": 96.66}, "functions": {"total": 4, "covered": 4, "skipped": 0, "pct": 100}, "statements": {"total": 150, "covered": 145, "skipped": 0, "pct": 96.66}, "branches": {"total": 22, "covered": 15, "skipped": 0, "pct": 68.18}}
+coverage-after
+total {"lines": {"total": 967, "covered": 954, "skipped": 0, "pct": 98.65}, "statements": {"total": 967, "covered": 954, "skipped": 0, "pct": 98.65}, "functions": {"total": 41, "covered": 41, "skipped": 0, "pct": 100}, "branches": {"total": 180, "covered": 155, "skipped": 0, "pct": 86.11}, "branchesTrue": {"total": 0, "covered": 0, "skipped": 0, "pct": 100}}
+src/index.ts {"lines": {"total": 452, "covered": 446, "skipped": 0, "pct": 98.67}, "functions": {"total": 28, "covered": 28, "skipped": 0, "pct": 100}, "statements": {"total": 452, "covered": 446, "skipped": 0, "pct": 98.67}, "branches": {"total": 95, "covered": 86, "skipped": 0, "pct": 90.52}}
+src/adapters/ai-sdk.ts {"lines": {"total": 130, "covered": 130, "skipped": 0, "pct": 100}, "functions": {"total": 3, "covered": 3, "skipped": 0, "pct": 100}, "statements": {"total": 130, "covered": 130, "skipped": 0, "pct": 100}, "branches": {"total": 16, "covered": 14, "skipped": 0, "pct": 87.5}}
+src/adapters/langchain.ts {"lines": {"total": 131, "covered": 129, "skipped": 0, "pct": 98.47}, "functions": {"total": 4, "covered": 4, "skipped": 0, "pct": 100}, "statements": {"total": 131, "covered": 129, "skipped": 0, "pct": 98.47}, "branches": {"total": 34, "covered": 32, "skipped": 0, "pct": 94.11}}
+src/adapters/mastra.ts {"lines": {"total": 104, "covered": 104, "skipped": 0, "pct": 100}, "functions": {"total": 2, "covered": 2, "skipped": 0, "pct": 100}, "statements": {"total": 104, "covered": 104, "skipped": 0, "pct": 100}, "branches": {"total": 11, "covered": 6, "skipped": 0, "pct": 54.54}}
+src/adapters/openai-agents.ts {"lines": {"total": 150, "covered": 145, "skipped": 0, "pct": 96.66}, "functions": {"total": 4, "covered": 4, "skipped": 0, "pct": 100}, "statements": {"total": 150, "covered": 145, "skipped": 0, "pct": 96.66}, "branches": {"total": 24, "covered": 17, "skipped": 0, "pct": 70.83}}

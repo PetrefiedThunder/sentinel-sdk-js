@@ -1,0 +1,145 @@
+Start: 2026-10-03T01:43:54+00:00
+End: 2026-10-03T01:43:54+00:00
+Command: rg -n -C 2 '"devDependencies"|"dependencies"|"peerDependencies"|"optionalDependencies"|"node"|approvals_v1_approvals|action_id|list_audit' package.json src/generated/api.d.ts
+Exit: 0
+
+package.json-62-  "bugs": "https://github.com/PetrefiedThunder/sentinel-sdk-js/issues",
+package.json-63-  "engines": {
+package.json:64:    "node": ">=18.17"
+package.json-65-  },
+package.json:66:  "peerDependencies": {
+package.json-67-    "@openai/agents": ">=0.1.0",
+package.json-68-    "ai": ">=4.0.0"
+--
+package.json-79-    "undici": "^6.29.0"
+package.json-80-  },
+package.json:81:  "devDependencies": {
+package.json-82-    "@semantic-release/changelog": "^7.0.0",
+package.json-83-    "@semantic-release/commit-analyzer": "^13.0.1",
+--
+src/generated/api.d.ts-122-         *     envelope {data, has_more, next_cursor}.
+src/generated/api.d.ts-123-         */
+src/generated/api.d.ts:124:        get: operations["list_approvals_v1_approvals_get"];
+src/generated/api.d.ts-125-        put?: never;
+src/generated/api.d.ts-126-        /**
+--
+src/generated/api.d.ts-137-        trace?: never;
+src/generated/api.d.ts-138-    };
+src/generated/api.d.ts:139:    "/v1/approvals/{action_id}/wait": {
+src/generated/api.d.ts-140-        parameters: {
+src/generated/api.d.ts-141-            query?: never;
+--
+src/generated/api.d.ts-149-         *     detection, with a 100ms DB fallback poll to handle missed notifications.
+src/generated/api.d.ts-150-         */
+src/generated/api.d.ts:151:        get: operations["wait_for_decision_v1_approvals__action_id__wait_get"];
+src/generated/api.d.ts-152-        put?: never;
+src/generated/api.d.ts-153-        post?: never;
+--
+src/generated/api.d.ts-158-        trace?: never;
+src/generated/api.d.ts-159-    };
+src/generated/api.d.ts:160:    "/v1/approvals/{action_id}": {
+src/generated/api.d.ts-161-        parameters: {
+src/generated/api.d.ts-162-            query?: never;
+--
+src/generated/api.d.ts-166-        };
+src/generated/api.d.ts-167-        /** Get Approval */
+src/generated/api.d.ts:168:        get: operations["get_approval_v1_approvals__action_id__get"];
+src/generated/api.d.ts-169-        put?: never;
+src/generated/api.d.ts-170-        post?: never;
+--
+src/generated/api.d.ts-175-        trace?: never;
+src/generated/api.d.ts-176-    };
+src/generated/api.d.ts:177:    "/v1/approvals/{action_id}/decision": {
+src/generated/api.d.ts-178-        parameters: {
+src/generated/api.d.ts-179-            query?: never;
+--
+src/generated/api.d.ts-185-        put?: never;
+src/generated/api.d.ts-186-        /** Decide */
+src/generated/api.d.ts:187:        post: operations["decide_v1_approvals__action_id__decision_post"];
+src/generated/api.d.ts-188-        delete?: never;
+src/generated/api.d.ts-189-        options?: never;
+--
+src/generated/api.d.ts-192-        trace?: never;
+src/generated/api.d.ts-193-    };
+src/generated/api.d.ts:194:    "/v1/approvals/{action_id}/token-decision": {
+src/generated/api.d.ts-195-        parameters: {
+src/generated/api.d.ts-196-            query?: never;
+--
+src/generated/api.d.ts-202-        put?: never;
+src/generated/api.d.ts-203-        /** Decide With Token */
+src/generated/api.d.ts:204:        post: operations["decide_with_token_v1_approvals__action_id__token_decision_post"];
+src/generated/api.d.ts-205-        delete?: never;
+src/generated/api.d.ts-206-        options?: never;
+--
+src/generated/api.d.ts-555-        AuditEventCreate: {
+src/generated/api.d.ts-556-            /** Action Id */
+src/generated/api.d.ts:557:            action_id: string;
+src/generated/api.d.ts-558-            /** Execution Result */
+src/generated/api.d.ts-559-            execution_result: string;
+--
+src/generated/api.d.ts-852-        };
+src/generated/api.d.ts-853-    };
+src/generated/api.d.ts:854:    list_approvals_v1_approvals_get: {
+src/generated/api.d.ts-855-        parameters: {
+src/generated/api.d.ts-856-            query?: {
+--
+src/generated/api.d.ts-923-        };
+src/generated/api.d.ts-924-    };
+src/generated/api.d.ts:925:    wait_for_decision_v1_approvals__action_id__wait_get: {
+src/generated/api.d.ts-926-        parameters: {
+src/generated/api.d.ts-927-            query?: {
+--
+src/generated/api.d.ts-933-            };
+src/generated/api.d.ts-934-            path: {
+src/generated/api.d.ts:935:                action_id: string;
+src/generated/api.d.ts-936-            };
+src/generated/api.d.ts-937-            cookie?: never;
+--
+src/generated/api.d.ts-959-        };
+src/generated/api.d.ts-960-    };
+src/generated/api.d.ts:961:    get_approval_v1_approvals__action_id__get: {
+src/generated/api.d.ts-962-        parameters: {
+src/generated/api.d.ts-963-            query?: never;
+--
+src/generated/api.d.ts-966-            };
+src/generated/api.d.ts-967-            path: {
+src/generated/api.d.ts:968:                action_id: string;
+src/generated/api.d.ts-969-            };
+src/generated/api.d.ts-970-            cookie?: never;
+--
+src/generated/api.d.ts-992-        };
+src/generated/api.d.ts-993-    };
+src/generated/api.d.ts:994:    decide_v1_approvals__action_id__decision_post: {
+src/generated/api.d.ts-995-        parameters: {
+src/generated/api.d.ts-996-            query?: never;
+--
+src/generated/api.d.ts-999-            };
+src/generated/api.d.ts-1000-            path: {
+src/generated/api.d.ts:1001:                action_id: string;
+src/generated/api.d.ts-1002-            };
+src/generated/api.d.ts-1003-            cookie?: never;
+--
+src/generated/api.d.ts-1029-        };
+src/generated/api.d.ts-1030-    };
+src/generated/api.d.ts:1031:    decide_with_token_v1_approvals__action_id__token_decision_post: {
+src/generated/api.d.ts-1032-        parameters: {
+src/generated/api.d.ts-1033-            query?: never;
+src/generated/api.d.ts-1034-            header?: never;
+src/generated/api.d.ts-1035-            path: {
+src/generated/api.d.ts:1036:                action_id: string;
+src/generated/api.d.ts-1037-            };
+src/generated/api.d.ts-1038-            cookie?: never;
+--
+src/generated/api.d.ts-1166-        parameters: {
+src/generated/api.d.ts-1167-            query?: {
+src/generated/api.d.ts:1168:                /** @description Filter to a single action_id */
+src/generated/api.d.ts:1169:                action_id?: string | null;
+src/generated/api.d.ts-1170-                limit?: number | null;
+src/generated/api.d.ts-1171-                cursor?: string | null;
+--
+src/generated/api.d.ts-1268-        parameters: {
+src/generated/api.d.ts-1269-            query?: {
+src/generated/api.d.ts:1270:                /** @description Filter to a single action_id */
+src/generated/api.d.ts:1271:                action_id?: string | null;
+src/generated/api.d.ts-1272-                limit?: number;
+src/generated/api.d.ts-1273-            };

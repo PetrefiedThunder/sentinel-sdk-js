@@ -1,0 +1,36 @@
+Start: 2026-10-03T01:44:40+00:00
+End: 2026-10-03T01:44:41+00:00
+Command: npm pack /private/tmp/sentinel-qa-clean-source --offline --json --pack-destination /private/tmp
+Exit: 0
+
+[
+  {
+    "id": "sentinel-oversight@0.1.0",
+    "name": "sentinel-oversight",
+    "version": "0.1.0",
+    "size": 3996,
+    "unpackedSize": 9297,
+    "shasum": "880e45f20cdad1de17fa6e62b18ae1b04685d9f8",
+    "integrity": "sha512-OU0k1iJyoRv5Im7dXYOcRk7oMk2y3YRNYlV1VW0rnIcJ7nCHQamauZazjpUeQasPD4Qttwr1gPzqDHB8ZaKfOw==",
+    "filename": "sentinel-oversight-0.1.0.tgz",
+    "files": [
+      {
+        "path": "LICENSE",
+        "size": 1072,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 5561,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 2664,
+        "mode": 420
+      }
+    ],
+    "entryCount": 3,
+    "bundled": []
+  }
+]

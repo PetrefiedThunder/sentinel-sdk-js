@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:53:09+00:00
+End: 2026-10-03T01:53:09+00:00
+Command: python3 /private/tmp/sentinel-qa-refresh-session.py
+Exit: 0
+
+Consolidated 134 command records plus bootstrap and pass charters.

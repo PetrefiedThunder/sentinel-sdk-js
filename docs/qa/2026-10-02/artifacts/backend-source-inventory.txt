@@ -1,0 +1,1214 @@
+Start: 2026-10-03T01:41:08+00:00
+End: 2026-10-03T01:41:08+00:00
+Command: python3 -c 'import pathlib; paths=[pathlib.Path("src/index.ts"),pathlib.Path("package.json")]+sorted(pathlib.Path("tests").glob("*.mjs")); print("FILES",*[str(p) for p in paths]); [(print("\\nFILE",p),print("".join(f"{i}: {s}" for i,s in enumerate(p.read_text().splitlines(keepends=True),1)))) for p in paths if p.name!="smoke.mjs"]'
+Exit: 0
+
+FILES src/index.ts package.json tests/ai-sdk.test.mjs tests/idempotency.test.mjs tests/openai-agents.test.mjs tests/pagination.test.mjs tests/serializable.test.mjs tests/smoke.mjs tests/timeout.test.mjs
+\nFILE src/index.ts
+1: /**
+2:  * Sentinel SDK for JavaScript / TypeScript.
+3:  *
+4:  *   import { configure, oversight } from 'sentinel-oversight';
+5:  *
+6:  *   configure({ apiKey: process.env.SENTINEL_API_KEY! });
+7:  *
+8:  *   const wireTransfer = oversight(
+9:  *     { riskLevel: 'high', approvers: ['alice@acme.com'] },
+10:  *     async (amount: number, recipient: string) => {
+11:  *       return stripe.transfers.create({ amount, destination: recipient });
+12:  *     }
+13:  *   );
+14:  *
+15:  *   await wireTransfer(50_000, 'acct_xyz');   // pauses until approved
+16:  *
+17:  * Mirrors the Python SDK (sentinel-oversight on PyPI) including the 0.1.8
+18:  * client-side JSON-serializability check.
+19:  */
+20: 
+21: export const VERSION = '0.1.0';
+22: const USER_AGENT = `sentinel-sdk-js/${VERSION}`;
+23: const DEFAULT_API_URL = 'https://api.pauseapi.app';
+24: 
+25: // ── Types ──────────────────────────────────────────────────────────
+26: export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+27: 
+28: export interface SentinelConfig {
+29:   apiKey: string;
+30:   apiUrl?: string;
+31:   timeoutSeconds?: number;
+32: }
+33: 
+34: export interface OversightOptions {
+35:   riskLevel?: RiskLevel;
+36:   approvers?: string[];
+37:   /**
+38:    * Approval timeout. The API requires a whole number of seconds, so a
+39:    * fractional value is rounded to the nearest second (Math.round) before
+40:    * being sent. Defaults to the client's `timeoutSeconds` (300).
+41:    */
+42:   timeoutSeconds?: number;
+43:   /** Override the function-name shown to approvers (defaults to fn.name). */
+44:   functionName?: string;
+45:   /**
+46:    * Stripe-style idempotency key sent as the `Idempotency-Key` header on
+47:    * approval creation. A string is used as-is; a function is called once per
+48:    * invocation to produce the key.
+49:    */
+50:   idempotencyKey?: string | (() => string);
+51: }
+52: 
+53: /** One page of results from a cursor-paginated list endpoint. */
+54: export interface PageResult<T> {
+55:   data: T[];
+56:   hasMore: boolean;
+57:   nextCursor: string | null;
+58: }
+59: 
+60: export interface ApprovalRecord {
+61:   action_id: string;
+62:   status: 'pending' | 'approved' | 'rejected';
+63:   decision: 'pending' | 'approved' | 'rejected';
+64:   reason?: string | null;
+65:   decided_by?: string | null;
+66:   decided_at?: string | null;
+67:   [key: string]: unknown;
+68: }
+69: 
+70: // ── Errors ─────────────────────────────────────────────────────────
+71: export class SentinelError extends Error {
+72:   constructor(message: string) {
+73:     super(message);
+74:     this.name = 'SentinelError';
+75:   }
+76: }
+77: 
+78: export class SentinelConfigError extends SentinelError {
+79:   constructor(message: string) {
+80:     super(message);
+81:     this.name = 'SentinelConfigError';
+82:   }
+83: }
+84: 
+85: export class SentinelAPIError extends SentinelError {
+86:   constructor(
+87:     public readonly statusCode: number,
+88:     message: string,
+89:     public readonly url?: string
+90:   ) {
+91:     super(`[${statusCode}] ${message}`);
+92:     this.name = 'SentinelAPIError';
+93:   }
+94: }
+95: 
+96: export class ApprovalRejected extends SentinelError {
+97:   constructor(
+98:     public readonly reason: string,
+99:     public readonly actionId: string
+100:   ) {
+101:     super(reason || 'Approval rejected');
+102:     this.name = 'ApprovalRejected';
+103:   }
+104: }
+105: 
+106: export class ApprovalTimeout extends SentinelError {
+107:   constructor(
+108:     public readonly actionId: string,
+109:     public readonly timeoutSeconds: number
+110:   ) {
+111:     super(`Approval timed out after ${timeoutSeconds}s`);
+112:     this.name = 'ApprovalTimeout';
+113:   }
+114: }
+115: 
+116: // ── Helpers ────────────────────────────────────────────────────────
+117: /** Fail-fast if args can't be JSON-encoded. Mirrors Python SDK 0.1.8 fix. */
+118: export function ensureJsonSerializable(value: unknown): void {
+119:   try {
+120:     JSON.stringify(value);
+121:   } catch (e) {
+122:     const msg = e instanceof Error ? e.message : String(e);
+123:     throw new TypeError(
+124:       `oversight arguments must be JSON-serializable. Got: ${msg}. ` +
+125:         `Convert Maps/Sets/BigInts/circular refs/class instances to plain ` +
+126:         `objects/arrays/strings/numbers/booleans/null before the call.`
+127:     );
+128:   }
+129: }
+130: 
+131: /** Wire shape of a paginated list response. */
+132: interface PageEnvelope<T> {
+133:   data: T[];
+134:   has_more: boolean;
+135:   next_cursor: string | null;
+136: }
+137: 
+138: function toPageResult<T>(page: PageEnvelope<T>): PageResult<T> {
+139:   return {
+140:     data: page.data,
+141:     hasMore: page.has_more,
+142:     nextCursor: page.next_cursor,
+143:   };
+144: }
+145: 
+146: /**
+147:  * Coerce an approval timeout to a whole number of seconds.
+148:  *
+149:  * The live API (`/v1/approvals` → ApprovalCreate.timeout_seconds) types this
+150:  * field as `integer` and returns HTTP 422 on a fractional value. Callers may
+151:  * naturally pass a float (e.g. a computed duration), so we round to the
+152:  * nearest second with Math.round before sending — 30.4 → 30, 30.5 → 31 — and
+153:  * clamp to a minimum of 1 so a sub-second value never becomes 0.
+154:  */
+155: function toIntTimeoutSeconds(value: number): number {
+156:   return Math.max(1, Math.round(value));
+157: }
+158: 
+159: function buildQuery(
+160:   params: Record<string, string | number | undefined>
+161: ): string {
+162:   const parts: string[] = [];
+163:   for (const [key, value] of Object.entries(params)) {
+164:     if (value === undefined) continue;
+165:     parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+166:   }
+167:   return parts.length ? `?${parts.join('&')}` : '';
+168: }
+169: 
+170: // ── Client ─────────────────────────────────────────────────────────
+171: export class SentinelClient {
+172:   private readonly apiKey: string;
+173:   private readonly apiUrl: string;
+174:   private readonly defaultTimeoutSeconds: number;
+175: 
+176:   constructor(config: SentinelConfig) {
+177:     if (!config.apiKey) {
+178:       throw new SentinelConfigError(
+179:         'configure({ apiKey }) — apiKey is required'
+180:       );
+181:     }
+182:     this.apiKey = config.apiKey;
+183:     this.apiUrl = (config.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, '');
+184:     this.defaultTimeoutSeconds = config.timeoutSeconds ?? 300;
+185:   }
+186: 
+187:   // ---- low-level HTTP ----
+188:   private async request<T = unknown>(
+189:     path: string,
+190:     init: RequestInit = {}
+191:   ): Promise<T> {
+192:     const url = `${this.apiUrl}${path}`;
+193:     const r = await fetch(url, {
+194:       ...init,
+195:       headers: {
+196:         'User-Agent': USER_AGENT,
+197:         'Content-Type': 'application/json',
+198:         Authorization: `Bearer ${this.apiKey}`,
+199:         ...(init.headers ?? {}),
+200:       },
+201:     });
+202:     if (!r.ok) {
+203:       let detail = '';
+204:       try {
+205:         const body = (await r.json()) as Record<string, unknown>;
+206:         const rawDetail = body['detail'] ?? body['message'] ?? body;
+207:         detail =
+208:           typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
+209:       } catch {
+210:         const txt = await r.text().catch(() => '');
+211:         detail = txt.slice(0, 500);
+212:       }
+213:       throw new SentinelAPIError(r.status, detail, url);
+214:     }
+215:     return (await r.json()) as T;
+216:   }
+217: 
+218:   // ---- approvals ----
+219:   async createApproval(opts: {
+220:     functionName: string;
+221:     arguments: unknown;
+222:     riskLevel?: RiskLevel;
+223:     approvers?: string[];
+224:     /** Whole seconds; a fraction is rounded to the nearest second. */
+225:     timeoutSeconds?: number;
+226:     idempotencyKey?: string;
+227:   }): Promise<ApprovalRecord> {
+228:     ensureJsonSerializable(opts.arguments);
+229:     return this.request<ApprovalRecord>('/v1/approvals', {
+230:       method: 'POST',
+231:       headers: opts.idempotencyKey
+232:         ? { 'Idempotency-Key': opts.idempotencyKey }
+233:         : {},
+234:       body: JSON.stringify({
+235:         function_name: opts.functionName,
+236:         arguments: opts.arguments,
+237:         risk_level: opts.riskLevel ?? 'medium',
+238:         approvers: opts.approvers ?? [],
+239:         // API types timeout_seconds as integer and 422s on a fraction.
+240:         timeout_seconds: toIntTimeoutSeconds(
+241:           opts.timeoutSeconds ?? this.defaultTimeoutSeconds
+242:         ),
+243:       }),
+244:     });
+245:   }
+246: 
+247:   /**
+248:    * List approvals one page at a time (cursor pagination). Always sends
+249:    * `limit` (default 50) so the server returns the paginated envelope.
+250:    */
+251:   async listApprovals(opts?: {
+252:     status?: string;
+253:     limit?: number;
+254:     cursor?: string;
+255:   }): Promise<PageResult<ApprovalRecord>> {
+256:     const qs = buildQuery({
+257:       status: opts?.status,
+258:       limit: opts?.limit ?? 50,
+259:       cursor: opts?.cursor,
+260:     });
+261:     const page = await this.request<PageEnvelope<ApprovalRecord>>(
+262:       `/v1/approvals${qs}`
+263:     );
+264:     return toPageResult(page);
+265:   }
+266: 
+267:   /**
+268:    * Iterate over all approvals, transparently following nextCursor across
+269:    * pages until the server reports hasMore=false.
+270:    */
+271:   async *iterApprovals(opts?: {
+272:     status?: string;
+273:     limit?: number;
+274:   }): AsyncGenerator<ApprovalRecord> {
+275:     let cursor: string | undefined;
+276:     while (true) {
+277:       const page = await this.listApprovals({ ...opts, cursor });
+278:       for (const item of page.data) yield item;
+279:       if (!page.hasMore || page.nextCursor === null) return;
+280:       cursor = page.nextCursor;
+281:     }
+282:   }
+283: 
+284:   async getApproval(actionId: string): Promise<ApprovalRecord> {
+285:     return this.request<ApprovalRecord>(
+286:       `/v1/approvals/${encodeURIComponent(actionId)}`
+287:     );
+288:   }
+289: 
+290:   /**
+291:    * Block until the approval is decided or the timeout elapses. Uses the
+292:    * server-side long-poll endpoint when available (single RTT per ~30 s
+293:    * window via Postgres LISTEN/NOTIFY); falls back to plain polling on older
+294:    * servers that don't have /wait.
+295:    */
+296:   async waitForDecision(
+297:     actionId: string,
+298:     timeoutSeconds?: number
+299:   ): Promise<ApprovalRecord> {
+300:     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
+301:     const deadline = Date.now() + timeout * 1000;
+302:     while (true) {
+303:       const remaining = Math.max(
+304:         1,
+305:         Math.min(30, Math.floor((deadline - Date.now()) / 1000))
+306:       );
+307:       let data: ApprovalRecord;
+308:       try {
+309:         data = await this.request<ApprovalRecord>(
+310:           `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`
+311:         );
+312:       } catch (e) {
+313:         if (e instanceof SentinelAPIError && e.statusCode === 404) {
+314:           data = await this.getApproval(actionId);
+315:         } else {
+316:           throw e;
+317:         }
+318:       }
+319:       const status = data.status ?? data.decision;
+320:       if (status === 'approved' || status === 'rejected') return data;
+321:       if (Date.now() >= deadline) {
+322:         throw new ApprovalTimeout(actionId, timeout);
+323:       }
+324:     }
+325:   }
+326: 
+327:   // ---- tenant ----
+328:   async getTenant(): Promise<Record<string, unknown>> {
+329:     return this.request('/v1/tenants/me');
+330:   }
+331: 
+332:   async setDefaultApprovers(
+333:     approvers: string[]
+334:   ): Promise<Record<string, unknown>> {
+335:     return this.request('/v1/tenants/me', {
+336:       method: 'PATCH',
+337:       body: JSON.stringify({ default_approvers: approvers }),
+338:     });
+339:   }
+340: 
+341:   // ---- audit ----
+342:   async listAuditEvents(actionId?: string): Promise<unknown[]> {
+343:     const qs = actionId
+344:       ? `?action_id=${encodeURIComponent(actionId)}`
+345:       : '';
+346:     return this.request<unknown[]>(`/v1/audit-events${qs}`);
+347:   }
+348: 
+349:   /**
+350:    * List audit events one page at a time (cursor pagination). Unlike the
+351:    * legacy listAuditEvents(), this always sends `limit` (default 50) so the
+352:    * server returns the paginated envelope.
+353:    */
+354:   async listAuditEventsPage(opts?: {
+355:     actionId?: string;
+356:     limit?: number;
+357:     cursor?: string;
+358:   }): Promise<PageResult<Record<string, unknown>>> {
+359:     const qs = buildQuery({
+360:       action_id: opts?.actionId,
+361:       limit: opts?.limit ?? 50,
+362:       cursor: opts?.cursor,
+363:     });
+364:     const page = await this.request<PageEnvelope<Record<string, unknown>>>(
+365:       `/v1/audit-events${qs}`
+366:     );
+367:     return toPageResult(page);
+368:   }
+369: 
+370:   // ---- the decorator surface ----
+371:   /**
+372:    * Wrap a function so each call pauses for human approval before executing.
+373:    *
+374:    *   const safeRefund = client.wrap(
+375:    *     { riskLevel: 'critical', approvers: ['alice@acme.com'] },
+376:    *     async (chargeId: string) => stripe.refunds.create({ charge: chargeId })
+377:    *   );
+378:    *
+379:    *   await safeRefund('ch_abc123');
+380:    *
+381:    * On approval the wrapped fn runs with the original arguments and its
+382:    * return value flows back to the caller. On rejection → ApprovalRejected.
+383:    * On timeout → ApprovalTimeout.
+384:    */
+385:   wrap<Args extends unknown[], R>(
+386:     opts: OversightOptions,
+387:     fn: (...args: Args) => Promise<R> | R
+388:   ): (...args: Args) => Promise<R> {
+389:     const fnName = opts.functionName || fn.name || 'anonymous';
+390:     return async (...args: Args): Promise<R> => {
+391:       // API requires `arguments` be a JSON object (dict). Two ergonomic
+392:       // shapes: if the caller passes exactly one plain-object arg, that
+393:       // object IS the arguments (named-style). Otherwise wrap positional
+394:       // args under `{ args: [...] }`.
+395:       const isPlainObject =
+396:         args.length === 1 &&
+397:         args[0] !== null &&
+398:         typeof args[0] === 'object' &&
+399:         !Array.isArray(args[0]);
+400:       const callArgs: Record<string, unknown> = isPlainObject
+401:         ? (args[0] as Record<string, unknown>)
+402:         : { args: args as unknown[] };
+403:       const idempotencyKey =
+404:         typeof opts.idempotencyKey === 'function'
+405:           ? opts.idempotencyKey()
+406:           : opts.idempotencyKey;
+407:       const approval = await this.createApproval({
+408:         functionName: fnName,
+409:         arguments: callArgs,
+410:         riskLevel: opts.riskLevel,
+411:         approvers: opts.approvers,
+412:         timeoutSeconds: opts.timeoutSeconds,
+413:         idempotencyKey,
+414:       });
+415:       const decision = await this.waitForDecision(
+416:         approval.action_id,
+417:         opts.timeoutSeconds
+418:       );
+419:       if (decision.decision === 'rejected' || decision.status === 'rejected') {
+420:         throw new ApprovalRejected(
+421:           (decision.reason as string) || 'Approval rejected',
+422:           approval.action_id
+423:         );
+424:       }
+425:       return await fn(...args);
+426:     };
+427:   }
+428: }
+429: 
+430: // ── Module-level convenience: configure() + oversight() ────────────
+431: let _defaultClient: SentinelClient | null = null;
+432: 
+433: export function configure(config: SentinelConfig): SentinelClient {
+434:   _defaultClient = new SentinelClient(config);
+435:   return _defaultClient;
+436: }
+437: 
+438: export function getClient(): SentinelClient {
+439:   if (!_defaultClient) {
+440:     throw new SentinelConfigError(
+441:       'Call configure({ apiKey: ... }) before using oversight()'
+442:     );
+443:   }
+444:   return _defaultClient;
+445: }
+446: 
+447: export function oversight<Args extends unknown[], R>(
+448:   opts: OversightOptions,
+449:   fn: (...args: Args) => Promise<R> | R
+450: ): (...args: Args) => Promise<R> {
+451:   return getClient().wrap(opts, fn);
+452: }
+
+\nFILE package.json
+1: {
+2:   "name": "sentinel-oversight",
+3:   "version": "0.1.0",
+4:   "description": "Human-in-the-loop approval for AI agent actions — one wrapper, magic-link approve/reject.",
+5:   "type": "module",
+6:   "main": "./dist/index.js",
+7:   "types": "./dist/index.d.ts",
+8:   "exports": {
+9:     ".": {
+10:       "import": "./dist/index.js",
+11:       "types": "./dist/index.d.ts"
+12:     },
+13:     "./langchain": {
+14:       "import": "./dist/adapters/langchain.js",
+15:       "types": "./dist/adapters/langchain.d.ts"
+16:     },
+17:     "./mastra": {
+18:       "import": "./dist/adapters/mastra.js",
+19:       "types": "./dist/adapters/mastra.d.ts"
+20:     },
+21:     "./ai-sdk": {
+22:       "import": "./dist/adapters/ai-sdk.js",
+23:       "types": "./dist/adapters/ai-sdk.d.ts"
+24:     },
+25:     "./openai-agents": {
+26:       "import": "./dist/adapters/openai-agents.js",
+27:       "types": "./dist/adapters/openai-agents.d.ts"
+28:     }
+29:   },
+30:   "files": [
+31:     "dist",
+32:     "README.md",
+33:     "LICENSE"
+34:   ],
+35:   "scripts": {
+36:     "build": "tsc -p tsconfig.json",
+37:     "typecheck": "tsc --noEmit -p tsconfig.json",
+38:     "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs",
+39:     "smoke": "node tests/smoke.mjs",
+40:     "demo": "node examples/demo.mjs",
+41:     "gen:types": "openapi-typescript https://api.pauseapi.app/openapi.json -o src/generated/api.d.ts",
+42:     "prepublishOnly": "npm run build"
+43:   },
+44:   "keywords": [
+45:     "ai",
+46:     "agent",
+47:     "approval",
+48:     "human-in-the-loop",
+49:     "sentinel",
+50:     "agent-safety",
+51:     "llm",
+52:     "guardrails",
+53:     "oversight"
+54:   ],
+55:   "author": "Christopher Sellers / RegEngine, Inc.",
+56:   "license": "MIT",
+57:   "repository": {
+58:     "type": "git",
+59:     "url": "https://github.com/PetrefiedThunder/sentinel-sdk-js"
+60:   },
+61:   "homepage": "https://pauseapi.app",
+62:   "bugs": "https://github.com/PetrefiedThunder/sentinel-sdk-js/issues",
+63:   "engines": {
+64:     "node": ">=18.17"
+65:   },
+66:   "peerDependencies": {
+67:     "@openai/agents": ">=0.1.0",
+68:     "ai": ">=4.0.0"
+69:   },
+70:   "peerDependenciesMeta": {
+71:     "@openai/agents": {
+72:       "optional": true
+73:     },
+74:     "ai": {
+75:       "optional": true
+76:     }
+77:   },
+78:   "overrides": {
+79:     "undici": "^6.29.0"
+80:   },
+81:   "devDependencies": {
+82:     "@semantic-release/changelog": "^7.0.0",
+83:     "@semantic-release/commit-analyzer": "^13.0.1",
+84:     "@semantic-release/git": "^11.0.1",
+85:     "@semantic-release/github": "^12.0.9",
+86:     "@semantic-release/npm": "^13.1.5",
+87:     "@semantic-release/release-notes-generator": "^14.1.1",
+88:     "@types/node": "^26.4.1",
+89:     "conventional-changelog-conventionalcommits": "^10.2.1",
+90:     "openapi-typescript": "^7.4.0",
+91:     "semantic-release": "^25.0.9",
+92:     "typescript": "^5.5.0"
+93:   }
+94: }
+
+\nFILE tests/ai-sdk.test.mjs
+1: // Unit tests for the Vercel AI SDK adapter — stubs globalThis.fetch.
+2: // The `ai` package is NOT installed; the adapter is duck-typed, so these
+3: // tests also prove the subpath import works without the peer dep.
+4: //
+5: // Run with native node test runner:  node --test tests/ai-sdk.test.mjs
+6: import { test, beforeEach, afterEach } from 'node:test';
+7: import assert from 'node:assert/strict';
+8: import { SentinelClient, ApprovalRejected } from '../dist/index.js';
+9: import { gated, gatedTools } from '../dist/adapters/ai-sdk.js';
+10: 
+11: const APPROVED = {
+12:   action_id: 'act_test',
+13:   status: 'approved',
+14:   decision: 'approved',
+15: };
+16: 
+17: const REJECTED = {
+18:   action_id: 'act_test',
+19:   status: 'rejected',
+20:   decision: 'rejected',
+21:   reason: 'nope',
+22: };
+23: 
+24: const originalFetch = globalThis.fetch;
+25: let recorded = [];
+26: let responses = [];
+27: 
+28: beforeEach(() => {
+29:   recorded = [];
+30:   responses = [];
+31:   globalThis.fetch = async (url, init = {}) => {
+32:     recorded.push({ url: String(url), init });
+33:     const body = responses.length > 0 ? responses.shift() : APPROVED;
+34:     return new Response(JSON.stringify(body), { status: 200 });
+35:   };
+36: });
+37: 
+38: afterEach(() => {
+39:   globalThis.fetch = originalFetch;
+40: });
+41: 
+42: function makeClient() {
+43:   return new SentinelClient({ apiKey: 'sk_test', apiUrl: 'https://stub.test' });
+44: }
+45: 
+46: // Minimal AI SDK v6-shaped tool: tool({ description, inputSchema, execute })
+47: // where execute is called as execute(input, options).
+48: function makeTool(executeImpl) {
+49:   return {
+50:     description: 'Wire USD between accounts',
+51:     inputSchema: { type: 'object' }, // opaque to the adapter
+52:     execute: executeImpl,
+53:   };
+54: }
+55: 
+56: test('approved → original execute runs with original args', async () => {
+57:   let received = null;
+58:   const tool = makeTool(async (input, options) => {
+59:     received = { input, options };
+60:     return 'done';
+61:   });
+62: 
+63:   const wrapped = gated(tool, {
+64:     client: makeClient(),
+65:     functionName: 'wire_transfer',
+66:   });
+67: 
+68:   const opts = { toolCallId: 'call_1', messages: [] };
+69:   const result = await wrapped.execute({ amount_usd: 50000, to: 'alice' }, opts);
+70: 
+71:   assert.equal(result, 'done');
+72:   assert.deepEqual(received.input, { amount_usd: 50000, to: 'alice' });
+73:   assert.equal(received.options, opts);
+74: 
+75:   // First request created the approval with the parsed input as arguments
+76:   const body = JSON.parse(recorded[0].init.body);
+77:   assert.equal(body.function_name, 'wire_transfer');
+78:   assert.deepEqual(body.arguments, { amount_usd: 50000, to: 'alice' });
+79: });
+80: 
+81: test('rejected → throws ApprovalRejected and never runs execute', async () => {
+82:   responses = [REJECTED, REJECTED];
+83:   let ran = false;
+84:   const tool = makeTool(async () => {
+85:     ran = true;
+86:   });
+87: 
+88:   const wrapped = gated(tool, { client: makeClient(), functionName: 'wire' });
+89: 
+90:   await assert.rejects(
+91:     () => wrapped.execute({ amount_usd: 1 }, { toolCallId: 'c', messages: [] }),
+92:     ApprovalRejected
+93:   );
+94:   assert.equal(ran, false);
+95: });
+96: 
+97: test('non-object input is wrapped under {input}', async () => {
+98:   const tool = makeTool(async () => 'ok');
+99:   const wrapped = gated(tool, { client: makeClient(), functionName: 'echo' });
+100: 
+101:   await wrapped.execute('plain string', { toolCallId: 'c', messages: [] });
+102: 
+103:   const body = JSON.parse(recorded[0].init.body);
+104:   assert.deepEqual(body.arguments, { input: 'plain string' });
+105: });
+106: 
+107: test('gated does not mutate the original tool', async () => {
+108:   const original = async () => 'ok';
+109:   const tool = makeTool(original);
+110:   const wrapped = gated(tool, { client: makeClient(), functionName: 'x' });
+111: 
+112:   assert.equal(tool.execute, original);
+113:   assert.notEqual(wrapped.execute, original);
+114:   assert.equal(wrapped.description, tool.description);
+115:   assert.equal(wrapped.inputSchema, tool.inputSchema);
+116: });
+117: 
+118: test('gated throws on a tool without execute', () => {
+119:   assert.throws(
+120:     () => gated({ description: 'client-side tool' }, { client: makeClient() }),
+121:     TypeError
+122:   );
+123: });
+124: 
+125: test('gatedTools uses record keys as functionName', async () => {
+126:   const tools = gatedTools(
+127:     {
+128:       wire_transfer: makeTool(async () => 'wired'),
+129:       delete_database: makeTool(async () => 'deleted'),
+130:     },
+131:     { client: makeClient() }
+132:   );
+133: 
+134:   await tools.wire_transfer.execute({ amount_usd: 1 }, { toolCallId: 'c', messages: [] });
+135:   await tools.delete_database.execute({ db: 'prod' }, { toolCallId: 'c', messages: [] });
+136: 
+137:   // Each call = 1 create + (0..n polls); first recorded body per tool is the create
+138:   const bodies = recorded
+139:     .filter((r) => r.init.body)
+140:     .map((r) => JSON.parse(r.init.body));
+141:   const names = bodies.map((b) => b.function_name);
+142:   assert.ok(names.includes('wire_transfer'));
+143:   assert.ok(names.includes('delete_database'));
+144: });
+
+\nFILE tests/idempotency.test.mjs
+1: // Unit tests for Idempotency-Key support — stubs globalThis.fetch.
+2: //
+3: // Run with native node test runner:  node --test tests/idempotency.test.mjs
+4: import { test, beforeEach, afterEach } from 'node:test';
+5: import assert from 'node:assert/strict';
+6: import { SentinelClient } from '../dist/index.js';
+7: 
+8: const APPROVED = {
+9:   action_id: 'act_test',
+10:   status: 'approved',
+11:   decision: 'approved',
+12: };
+13: 
+14: const originalFetch = globalThis.fetch;
+15: let recorded = [];
+16: 
+17: beforeEach(() => {
+18:   recorded = [];
+19:   globalThis.fetch = async (url, init = {}) => {
+20:     recorded.push({ url: String(url), init });
+21:     return new Response(JSON.stringify(APPROVED), { status: 200 });
+22:   };
+23: });
+24: 
+25: afterEach(() => {
+26:   globalThis.fetch = originalFetch;
+27: });
+28: 
+29: function makeClient() {
+30:   return new SentinelClient({ apiKey: 'sk_test', apiUrl: 'https://stub.test' });
+31: }
+32: 
+33: test('createApproval with idempotencyKey sends Idempotency-Key header', async () => {
+34:   const client = makeClient();
+35:   await client.createApproval({
+36:     functionName: 'wire',
+37:     arguments: { amount: 1 },
+38:     idempotencyKey: 'key-123',
+39:   });
+40:   assert.equal(recorded.length, 1);
+41:   const headers = new Headers(recorded[0].init.headers);
+42:   assert.equal(headers.get('Idempotency-Key'), 'key-123');
+43: });
+44: 
+45: test('createApproval without idempotencyKey omits the header', async () => {
+46:   const client = makeClient();
+47:   await client.createApproval({
+48:     functionName: 'wire',
+49:     arguments: { amount: 1 },
+50:   });
+51:   assert.equal(recorded.length, 1);
+52:   const headers = new Headers(recorded[0].init.headers);
+53:   assert.equal(headers.get('Idempotency-Key'), null);
+54: });
+55: 
+56: test('wrap with function-valued idempotencyKey calls generator and sends header', async () => {
+57:   const client = makeClient();
+58:   let calls = 0;
+59:   const wrapped = client.wrap(
+60:     {
+61:       functionName: 'wire',
+62:       idempotencyKey: () => {
+63:         calls += 1;
+64:         return `gen-key-${calls}`;
+65:       },
+66:     },
+67:     async (amount) => amount * 2
+68:   );
+69:   const result = await wrapped(21);
+70:   assert.equal(result, 42);
+71:   assert.equal(calls, 1);
+72:   const create = recorded.find(
+73:     (r) => r.url.endsWith('/v1/approvals') && r.init.method === 'POST'
+74:   );
+75:   assert.ok(create, 'expected a POST /v1/approvals call');
+76:   const headers = new Headers(create.init.headers);
+77:   assert.equal(headers.get('Idempotency-Key'), 'gen-key-1');
+78: });
+
+\nFILE tests/openai-agents.test.mjs
+1: // Unit tests for the OpenAI Agents (JS/TS) adapter — stubs globalThis.fetch.
+2: // The `@openai/agents` package is NOT installed; the adapter is duck-typed, so
+3: // these tests also prove the subpath import works without the peer dep.
+4: //
+5: // Run with native node test runner:  node --test tests/openai-agents.test.mjs
+6: import { test, beforeEach, afterEach } from 'node:test';
+7: import assert from 'node:assert/strict';
+8: import { SentinelClient, ApprovalRejected } from '../dist/index.js';
+9: import { gated, gatedTools } from '../dist/adapters/openai-agents.js';
+10: 
+11: const APPROVED = {
+12:   action_id: 'act_test',
+13:   status: 'approved',
+14:   decision: 'approved',
+15: };
+16: 
+17: const REJECTED = {
+18:   action_id: 'act_test',
+19:   status: 'rejected',
+20:   decision: 'rejected',
+21:   reason: 'nope',
+22: };
+23: 
+24: const originalFetch = globalThis.fetch;
+25: let recorded = [];
+26: let responses = [];
+27: 
+28: beforeEach(() => {
+29:   recorded = [];
+30:   responses = [];
+31:   globalThis.fetch = async (url, init = {}) => {
+32:     recorded.push({ url: String(url), init });
+33:     const body = responses.length > 0 ? responses.shift() : APPROVED;
+34:     return new Response(JSON.stringify(body), { status: 200 });
+35:   };
+36: });
+37: 
+38: afterEach(() => {
+39:   globalThis.fetch = originalFetch;
+40: });
+41: 
+42: function makeClient() {
+43:   return new SentinelClient({ apiKey: 'sk_test', apiUrl: 'https://stub.test' });
+44: }
+45: 
+46: // Minimal @openai/agents FunctionTool: the object returned by tool({...}).
+47: // The SDK calls invoke(runContext, input, details) where `input` is the raw
+48: // JSON-string of the arguments the model produced.
+49: function makeTool(name, invokeImpl) {
+50:   return {
+51:     type: 'function',
+52:     name,
+53:     description: 'Wire USD between accounts',
+54:     parameters: { type: 'object' }, // opaque to the adapter
+55:     strict: true,
+56:     invoke: invokeImpl,
+57:   };
+58: }
+59: 
+60: test('approved → original invoke runs with original args', async () => {
+61:   let received = null;
+62:   const tool = makeTool('wire_transfer', async (runContext, input, details) => {
+63:     received = { runContext, input, details };
+64:     return 'done';
+65:   });
+66: 
+67:   const wrapped = gated(tool, { client: makeClient() });
+68: 
+69:   const runContext = { context: {} };
+70:   const input = JSON.stringify({ amount_usd: 50000, to: 'alice' });
+71:   const details = { toolCall: { id: 'call_1' } };
+72:   const result = await wrapped.invoke(runContext, input, details);
+73: 
+74:   assert.equal(result, 'done');
+75:   assert.equal(received.runContext, runContext);
+76:   assert.equal(received.input, input);
+77:   assert.equal(received.details, details);
+78: 
+79:   // First request created the approval with the parsed JSON-string arguments,
+80:   // and the tool's own name is used as function_name.
+81:   const body = JSON.parse(recorded[0].init.body);
+82:   assert.equal(body.function_name, 'wire_transfer');
+83:   assert.deepEqual(body.arguments, { amount_usd: 50000, to: 'alice' });
+84: });
+85: 
+86: test('rejected → throws ApprovalRejected and never runs invoke', async () => {
+87:   responses = [REJECTED, REJECTED];
+88:   let ran = false;
+89:   const tool = makeTool('wire', async () => {
+90:     ran = true;
+91:   });
+92: 
+93:   const wrapped = gated(tool, { client: makeClient() });
+94: 
+95:   await assert.rejects(
+96:     () => wrapped.invoke({}, JSON.stringify({ amount_usd: 1 }), {}),
+97:     ApprovalRejected
+98:   );
+99:   assert.equal(ran, false);
+100: });
+101: 
+102: test('functionName overrides the tool name', async () => {
+103:   const tool = makeTool('wire', async () => 'ok');
+104:   const wrapped = gated(tool, { client: makeClient(), functionName: 'custom_name' });
+105: 
+106:   await wrapped.invoke({}, JSON.stringify({ a: 1 }), {});
+107: 
+108:   const body = JSON.parse(recorded[0].init.body);
+109:   assert.equal(body.function_name, 'custom_name');
+110: });
+111: 
+112: test('non-JSON-object input is wrapped under {input}', async () => {
+113:   const tool = makeTool('echo', async () => 'ok');
+114:   const wrapped = gated(tool, { client: makeClient() });
+115: 
+116:   // A plain (non-JSON) string can't be parsed to an object → wrap it.
+117:   await wrapped.invoke({}, 'plain string', {});
+118: 
+119:   const body = JSON.parse(recorded[0].init.body);
+120:   assert.deepEqual(body.arguments, { input: 'plain string' });
+121: });
+122: 
+123: test('gated does not mutate the original tool', async () => {
+124:   const original = async () => 'ok';
+125:   const tool = makeTool('x', original);
+126:   const wrapped = gated(tool, { client: makeClient() });
+127: 
+128:   assert.equal(tool.invoke, original);
+129:   assert.notEqual(wrapped.invoke, original);
+130:   assert.equal(wrapped.name, tool.name);
+131:   assert.equal(wrapped.description, tool.description);
+132:   assert.equal(wrapped.parameters, tool.parameters);
+133: });
+134: 
+135: test('gated throws on a tool without invoke', () => {
+136:   assert.throws(
+137:     () => gated({ type: 'function', name: 'hosted' }, { client: makeClient() }),
+138:     TypeError
+139:   );
+140: });
+141: 
+142: test('gatedTools wraps each tool and keeps its own name', async () => {
+143:   const tools = gatedTools(
+144:     [
+145:       makeTool('wire_transfer', async () => 'wired'),
+146:       makeTool('delete_database', async () => 'deleted'),
+147:     ],
+148:     { client: makeClient() }
+149:   );
+150: 
+151:   await tools[0].invoke({}, JSON.stringify({ amount_usd: 1 }), {});
+152:   await tools[1].invoke({}, JSON.stringify({ db: 'prod' }), {});
+153: 
+154:   const bodies = recorded
+155:     .filter((r) => r.init.body)
+156:     .map((r) => JSON.parse(r.init.body));
+157:   const names = bodies.map((b) => b.function_name);
+158:   assert.ok(names.includes('wire_transfer'));
+159:   assert.ok(names.includes('delete_database'));
+160: });
+
+\nFILE tests/pagination.test.mjs
+1: // Unit tests for cursor pagination — stubs globalThis.fetch.
+2: //
+3: // Run with native node test runner:  node --test tests/pagination.test.mjs
+4: import { test, beforeEach, afterEach } from 'node:test';
+5: import assert from 'node:assert/strict';
+6: import { SentinelClient } from '../dist/index.js';
+7: 
+8: const originalFetch = globalThis.fetch;
+9: let recorded = [];
+10: let responses = [];
+11: 
+12: beforeEach(() => {
+13:   recorded = [];
+14:   responses = [];
+15:   globalThis.fetch = async (url, init = {}) => {
+16:     recorded.push({ url: String(url), init });
+17:     const body = responses.shift();
+18:     return new Response(JSON.stringify(body), { status: 200 });
+19:   };
+20: });
+21: 
+22: afterEach(() => {
+23:   globalThis.fetch = originalFetch;
+24: });
+25: 
+26: function makeClient() {
+27:   return new SentinelClient({ apiKey: 'sk_test', apiUrl: 'https://stub.test' });
+28: }
+29: 
+30: test('listApprovals sends limit, status, cursor and maps envelope to PageResult', async () => {
+31:   responses = [
+32:     {
+33:       data: [{ action_id: 'act_1', status: 'pending', decision: 'pending' }],
+34:       has_more: true,
+35:       next_cursor: 'cur_next',
+36:     },
+37:   ];
+38:   const client = makeClient();
+39:   const page = await client.listApprovals({
+40:     status: 'pending',
+41:     limit: 10,
+42:     cursor: 'cur a/b',
+43:   });
+44:   assert.equal(recorded.length, 1);
+45:   const url = new URL(recorded[0].url);
+46:   assert.equal(url.pathname, '/v1/approvals');
+47:   assert.equal(url.searchParams.get('status'), 'pending');
+48:   assert.equal(url.searchParams.get('limit'), '10');
+49:   assert.equal(url.searchParams.get('cursor'), 'cur a/b');
+50:   assert.ok(recorded[0].url.includes('cursor=cur%20a%2Fb'));
+51:   assert.deepEqual(page, {
+52:     data: [{ action_id: 'act_1', status: 'pending', decision: 'pending' }],
+53:     hasMore: true,
+54:     nextCursor: 'cur_next',
+55:   });
+56: });
+57: 
+58: test('listApprovals defaults limit to 50 and omits absent params', async () => {
+59:   responses = [{ data: [], has_more: false, next_cursor: null }];
+60:   const client = makeClient();
+61:   const page = await client.listApprovals();
+62:   const url = new URL(recorded[0].url);
+63:   assert.equal(url.searchParams.get('limit'), '50');
+64:   assert.equal(url.searchParams.has('status'), false);
+65:   assert.equal(url.searchParams.has('cursor'), false);
+66:   assert.deepEqual(page, { data: [], hasMore: false, nextCursor: null });
+67: });
+68: 
+69: test('iterApprovals walks pages via nextCursor and yields items in order', async () => {
+70:   const a = { action_id: 'act_1', status: 'pending', decision: 'pending' };
+71:   const b = { action_id: 'act_2', status: 'pending', decision: 'pending' };
+72:   const c = { action_id: 'act_3', status: 'pending', decision: 'pending' };
+73:   responses = [
+74:     { data: [a, b], has_more: true, next_cursor: 'cur_2' },
+75:     { data: [c], has_more: false, next_cursor: null },
+76:   ];
+77:   const client = makeClient();
+78:   const seen = [];
+79:   for await (const approval of client.iterApprovals({ status: 'pending', limit: 2 })) {
+80:     seen.push(approval.action_id);
+81:   }
+82:   assert.deepEqual(seen, ['act_1', 'act_2', 'act_3']);
+83:   assert.equal(recorded.length, 2);
+84:   const url1 = new URL(recorded[0].url);
+85:   assert.equal(url1.searchParams.has('cursor'), false);
+86:   assert.equal(url1.searchParams.get('limit'), '2');
+87:   const url2 = new URL(recorded[1].url);
+88:   assert.equal(url2.searchParams.get('cursor'), 'cur_2');
+89:   assert.equal(url2.searchParams.get('status'), 'pending');
+90: });
+91: 
+92: test('listAuditEventsPage sends action_id/limit/cursor and maps fields', async () => {
+93:   responses = [
+94:     {
+95:       data: [{ event: 'approval.created', action_id: 'act_1' }],
+96:       has_more: false,
+97:       next_cursor: null,
+98:     },
+99:   ];
+100:   const client = makeClient();
+101:   const page = await client.listAuditEventsPage({
+102:     actionId: 'act_1',
+103:     limit: 25,
+104:     cursor: 'cur_x',
+105:   });
+106:   const url = new URL(recorded[0].url);
+107:   assert.equal(url.pathname, '/v1/audit-events');
+108:   assert.equal(url.searchParams.get('action_id'), 'act_1');
+109:   assert.equal(url.searchParams.get('limit'), '25');
+110:   assert.equal(url.searchParams.get('cursor'), 'cur_x');
+111:   assert.deepEqual(page, {
+112:     data: [{ event: 'approval.created', action_id: 'act_1' }],
+113:     hasMore: false,
+114:     nextCursor: null,
+115:   });
+116: });
+
+\nFILE tests/serializable.test.mjs
+1: // Unit tests for ensureJsonSerializable — mirrors Python 0.1.8 test suite.
+2: //
+3: // Run with native node test runner:  node --test tests/serializable.test.mjs
+4: import { test } from 'node:test';
+5: import assert from 'node:assert/strict';
+6: import { ensureJsonSerializable } from '../dist/index.js';
+7: 
+8: test('plain dict ok', () => {
+9:   ensureJsonSerializable({ amount: 100, recipient: 'alice' });
+10: });
+11: 
+12: test('nested dict ok', () => {
+13:   ensureJsonSerializable({ meta: { tags: ['a', 'b'], n: 1 } });
+14: });
+15: 
+16: test('primitives ok', () => {
+17:   for (const v of [null, true, 1, 1.5, 'str', [], {}, [1, 2, 3]]) {
+18:     ensureJsonSerializable(v);
+19:   }
+20: });
+21: 
+22: test('BigInt raises TypeError', () => {
+23:   assert.throws(() => ensureJsonSerializable(123n), TypeError);
+24: });
+25: 
+26: test('circular reference raises TypeError', () => {
+27:   const a = {};
+28:   a.self = a;
+29:   assert.throws(() => ensureJsonSerializable(a), TypeError);
+30: });
+31: 
+32: test('nested unserializable raises TypeError', () => {
+33:   assert.throws(
+34:     () => ensureJsonSerializable({ ok: 'yes', bad: 123n }),
+35:     TypeError
+36:   );
+37: });
+
+\nFILE tests/timeout.test.mjs
+1: // Unit tests for timeout_seconds integer coercion — stubs globalThis.fetch.
+2: //
+3: // The live API types ApprovalCreate.timeout_seconds as `integer` and returns
+4: // HTTP 422 on a fractional value. The SDK must round to a whole number of
+5: // seconds before sending. Run: node --test tests/timeout.test.mjs
+6: import { test, beforeEach, afterEach } from 'node:test';
+7: import assert from 'node:assert/strict';
+8: import { SentinelClient } from '../dist/index.js';
+9: 
+10: const APPROVED = {
+11:   action_id: 'act_test',
+12:   status: 'approved',
+13:   decision: 'approved',
+14: };
+15: 
+16: const originalFetch = globalThis.fetch;
+17: let recorded = [];
+18: 
+19: beforeEach(() => {
+20:   recorded = [];
+21:   globalThis.fetch = async (url, init = {}) => {
+22:     recorded.push({ url: String(url), init });
+23:     return new Response(JSON.stringify(APPROVED), { status: 200 });
+24:   };
+25: });
+26: 
+27: afterEach(() => {
+28:   globalThis.fetch = originalFetch;
+29: });
+30: 
+31: function makeClient(config = {}) {
+32:   return new SentinelClient({
+33:     apiKey: 'sk_test',
+34:     apiUrl: 'https://stub.test',
+35:     ...config,
+36:   });
+37: }
+38: 
+39: function createBody(rec) {
+40:   return JSON.parse(rec.init.body);
+41: }
+42: 
+43: test('createApproval rounds a fractional timeout down to the nearest int', async () => {
+44:   const client = makeClient();
+45:   await client.createApproval({
+46:     functionName: 'wire',
+47:     arguments: { amount: 1 },
+48:     timeoutSeconds: 30.4,
+49:   });
+50:   const body = createBody(recorded[0]);
+51:   assert.equal(body.timeout_seconds, 30);
+52:   assert.equal(Number.isInteger(body.timeout_seconds), true);
+53: });
+54: 
+55: test('createApproval rounds a fractional timeout up to the nearest int', async () => {
+56:   const client = makeClient();
+57:   await client.createApproval({
+58:     functionName: 'wire',
+59:     arguments: { amount: 1 },
+60:     timeoutSeconds: 30.5,
+61:   });
+62:   const body = createBody(recorded[0]);
+63:   assert.equal(body.timeout_seconds, 31);
+64: });
+65: 
+66: test('createApproval clamps a sub-second timeout to a minimum of 1', async () => {
+67:   const client = makeClient();
+68:   await client.createApproval({
+69:     functionName: 'wire',
+70:     arguments: { amount: 1 },
+71:     timeoutSeconds: 0.2,
+72:   });
+73:   const body = createBody(recorded[0]);
+74:   assert.equal(body.timeout_seconds, 1);
+75: });
+76: 
+77: test('createApproval leaves an integer timeout unchanged', async () => {
+78:   const client = makeClient();
+79:   await client.createApproval({
+80:     functionName: 'wire',
+81:     arguments: { amount: 1 },
+82:     timeoutSeconds: 120,
+83:   });
+84:   assert.equal(createBody(recorded[0]).timeout_seconds, 120);
+85: });
+86: 
+87: test('createApproval coerces the client default timeout to an int', async () => {
+88:   const client = makeClient({ timeoutSeconds: 45.9 });
+89:   await client.createApproval({
+90:     functionName: 'wire',
+91:     arguments: { amount: 1 },
+92:   });
+93:   const body = createBody(recorded[0]);
+94:   assert.equal(body.timeout_seconds, 46);
+95:   assert.equal(Number.isInteger(body.timeout_seconds), true);
+96: });
+97: 
+98: test('wrap forwards a fractional timeout as an int on the POST body', async () => {
+99:   const client = makeClient();
+100:   const wrapped = client.wrap(
+101:     { functionName: 'wire', timeoutSeconds: 90.7 },
+102:     async (amount) => amount * 2
+103:   );
+104:   const result = await wrapped(21);
+105:   assert.equal(result, 42);
+106:   const create = recorded.find(
+107:     (r) => r.url.endsWith('/v1/approvals') && r.init.method === 'POST'
+108:   );
+109:   assert.ok(create, 'expected a POST /v1/approvals call');
+110:   assert.equal(createBody(create).timeout_seconds, 91);
+111: });
+

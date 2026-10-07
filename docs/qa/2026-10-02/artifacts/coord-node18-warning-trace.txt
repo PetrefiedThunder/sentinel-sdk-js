@@ -1,0 +1,279 @@
+Start: 2026-10-03T01:48:45+00:00
+End: 2026-10-03T01:48:46+00:00
+Command: npm exec --yes --package=node@18.17.1 -- node --trace-warnings --test tests/qa/backend-core.test.mjs
+Exit: 1
+
+TAP version 13
+# (node:79190) MaxListenersExceededWarning: Possible EventTarget memory leak detected. 11 abort listeners added to [AbortSignal]. Use events.setMaxListeners() to increase limit
+#     at [kNewListener] (node:internal/event_target:520:17)
+#     at [kNewListener] (node:internal/abort_controller:238:24)
+#     at EventTarget.addEventListener (node:internal/event_target:629:23)
+#     at eventTargetAgnosticAddListener (node:events:1027:13)
+#     at node:events:984:5
+#     at new Promise (<anonymous>)
+#     at once (node:events:967:10)
+#     at stopTest (node:internal/test_runner/test:78:12)
+#     at TestHook.run (node:internal/test_runner/test:551:27)
+#     at TestHook.run (node:internal/test_runner/test:752:18)
+# (node:79190) MaxListenersExceededWarning: Possible EventTarget memory leak detected. 11 abort listeners added to [AbortSignal]. Use events.setMaxListeners() to increase limit
+#     at [kNewListener] (node:internal/event_target:520:17)
+#     at [kNewListener] (node:internal/abort_controller:238:24)
+#     at EventTarget.addEventListener (node:internal/event_target:629:23)
+#     at eventTargetAgnosticAddListener (node:events:1027:13)
+#     at node:events:984:5
+#     at new Promise (<anonymous>)
+#     at once (node:events:967:10)
+#     at stopTest (node:internal/test_runner/test:78:12)
+#     at TestHook.run (node:internal/test_runner/test:551:27)
+#     at TestHook.run (node:internal/test_runner/test:752:18)
+# Subtest: BE control: missing API key fails before network
+ok 1 - BE control: missing API key fails before network
+  ---
+  duration_ms: 0.884166
+  ...
+# Subtest: BE control: approved named and positional arguments execute once and preserve return values
+ok 2 - BE control: approved named and positional arguments execute once and preserve return values
+  ---
+  duration_ms: 5.709042
+  ...
+# Subtest: BE control: rejection blocks the protected action and retains reason/action ID
+ok 3 - BE control: rejection blocks the protected action and retains reason/action ID
+  ---
+  duration_ms: 0.689959
+  ...
+# Subtest: BE control: rejection wins a contradictory approved/rejected response
+ok 4 - BE control: rejection wins a contradictory approved/rejected response
+  ---
+  duration_ms: 0.445166
+  ...
+# Subtest: BE error matrix: HTTP 401 stops execution without an automatic retry
+ok 5 - BE error matrix: HTTP 401 stops execution without an automatic retry
+  ---
+  duration_ms: 0.572875
+  ...
+# Subtest: BE error matrix: HTTP 403 stops execution without an automatic retry
+ok 6 - BE error matrix: HTTP 403 stops execution without an automatic retry
+  ---
+  duration_ms: 0.248458
+  ...
+# Subtest: BE error matrix: HTTP 409 stops execution without an automatic retry
+ok 7 - BE error matrix: HTTP 409 stops execution without an automatic retry
+  ---
+  duration_ms: 0.39525
+  ...
+# Subtest: BE error matrix: HTTP 422 stops execution without an automatic retry
+ok 8 - BE error matrix: HTTP 422 stops execution without an automatic retry
+  ---
+  duration_ms: 0.248375
+  ...
+# Subtest: BE error matrix: HTTP 429 stops execution without an automatic retry
+ok 9 - BE error matrix: HTTP 429 stops execution without an automatic retry
+  ---
+  duration_ms: 0.852417
+  ...
+# Subtest: BE error matrix: HTTP 500 stops execution without an automatic retry
+ok 10 - BE error matrix: HTTP 500 stops execution without an automatic retry
+  ---
+  duration_ms: 0.395416
+  ...
+# Subtest: BE error matrix: HTTP 503 stops execution without an automatic retry
+ok 11 - BE error matrix: HTTP 503 stops execution without an automatic retry
+  ---
+  duration_ms: 0.814333
+  ...
+# Subtest: BE control: structured validation error survives normalization
+ok 12 - BE control: structured validation error survives normalization
+  ---
+  duration_ms: 0.245833
+  ...
+# Subtest: BE control: transport failure stops execution
+ok 13 - BE control: transport failure stops execution
+  ---
+  duration_ms: 0.196209
+  ...
+# Subtest: BE control: malformed successful JSON stops execution
+ok 14 - BE control: malformed successful JSON stops execution
+  ---
+  duration_ms: 0.1515
+  ...
+# Subtest: BE control: pending decision past deadline throws ApprovalTimeout
+ok 15 - BE control: pending decision past deadline throws ApprovalTimeout
+  ---
+  duration_ms: 0.144833
+  ...
+# Subtest: BE control: 404 wait fallback can retrieve a valid approval
+ok 16 - BE control: 404 wait fallback can retrieve a valid approval
+  ---
+  duration_ms: 0.204167
+  ...
+# Subtest: BE control: decision-only response is accepted for backward compatibility
+ok 17 - BE control: decision-only response is accepted for backward compatibility
+  ---
+  duration_ms: 0.184833
+  ...
+# Subtest: BE control: separately configured clients and captured wrappers keep their own auth context
+ok 18 - BE control: separately configured clients and captured wrappers keep their own auth context
+  ---
+  duration_ms: 0.752709
+  ...
+# Subtest: BE control: path and query special characters remain data
+ok 19 - BE control: path and query special characters remain data
+  ---
+  duration_ms: 0.854083
+  ...
+# Subtest: BE property control: seeded JSON values preserve approved and executed intent
+ok 20 - BE property control: seeded JSON values preserve approved and executed intent
+  ---
+  duration_ms: 6.203375
+  ...
+# Subtest: BE control: circular and BigInt arguments fail before request or execution
+ok 21 - BE control: circular and BigInt arguments fail before request or execution
+  ---
+  duration_ms: 0.165417
+  ...
+# Subtest: BE control: tenant settings and legacy audit list use expected wire shapes
+ok 22 - BE control: tenant settings and legacy audit list use expected wire shapes
+  ---
+  duration_ms: 0.199792
+  ...
+# Subtest: BE idempotency scope control: replayed approval does not deduplicate wrapped side effects
+ok 23 - BE idempotency scope control: replayed approval does not deduplicate wrapped side effects
+  ---
+  duration_ms: 0.187334
+  ...
+# Subtest: BE-001: mutation during approval wait must not change the executed intent
+not ok 24 - BE-001: mutation during approval wait must not change the executed intent # TODO BE-001 mutable approval arguments
+  ---
+  duration_ms: 0.634584
+  failureType: 'testCodeFailure'
+  error: 'executed payload must match the human-reviewed request'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    transfer:
+      amount: 1
+      recipient: 'qa-reviewed'
+  actual:
+    transfer:
+      amount: 999
+      recipient: 'qa-changed'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:210:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: BE-002: approval received after deadline must not execute the action
+not ok 25 - BE-002: approval received after deadline must not execute the action # TODO BE-002 local deadline is not enforced on terminal response
+  ---
+  duration_ms: 0.180083
+  failureType: 'testCodeFailure'
+  error: 'a late approval must not run the protected action'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:223:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: BE-002: a stalled request must settle at the approval deadline
+not ok 26 - BE-002: a stalled request must settle at the approval deadline # TODO BE-002 fetch has no deadline or abort signal
+  ---
+  duration_ms: 81.886792
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'still-pending'
+    - 'timeout'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'timeout'
+  actual: 'still-pending'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:238:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: BE-003: lossy non-JSON arguments must fail before approval or execution
+not ok 27 - BE-003: lossy non-JSON arguments must fail before approval or execution # TODO BE-003 serializer accepts silently altered values
+  ---
+  duration_ms: 0.571166
+  failureType: 'testCodeFailure'
+  error: 'silently omitted or changed data must not execute under a different approved payload'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'amount'
+    1: 'amount'
+    2: 'hidden'
+    3: 'targets'
+    4: 'targets'
+    5: 'operation'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:255:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: BE-004: legacy fallback polling must be paced
+not ok 28 - BE-004: legacy fallback polling must be paced # TODO BE-004 no delay between 404/pending poll attempts
+  ---
+  duration_ms: 0.530167
+  failureType: 'testCodeFailure'
+  error: '6 requests ran before a timer/event-loop turn; fallback must be paced'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:272:10)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+# Subtest: BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions
+ok 29 - BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions
+  ---
+  duration_ms: 13.590625
+  ...
+# Subtest: BE-005: plain-text HTTP error retains useful response detail
+not ok 30 - BE-005: plain-text HTTP error retains useful response detail # TODO BE-005 response body is consumed before text fallback
+  ---
+  duration_ms: 0.270083
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /Synthetic gateway unavailable/. Input:
+    
+    '[502] '
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: '[502] '
+  operator: 'match'
+  stack: |-
+    Object.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:332:12)
+    expectedException (node:assert:724:17)
+    expectsError (node:assert:847:3)
+    Function.rejects (node:assert:912:3)
+    process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:329:3)
+    async Test.run (node:internal/test_runner/test:574:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:318:7)
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 6
+# duration_ms 186.743084

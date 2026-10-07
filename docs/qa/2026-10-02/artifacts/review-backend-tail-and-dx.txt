@@ -1,0 +1,396 @@
+Start: 2026-10-03T01:44:58+00:00
+End: 2026-10-03T01:44:58+00:00
+Command: python3 -c 'from pathlib import Path; pairs=[("tests/qa/backend-core.test.mjs",150,400),("tests/qa/ux-docs.test.mjs",1,300),("tests/qa/frontend-consumer.mts",1,300),("tests/qa/frontend-consumer-control.mts",1,300)]; [(print("\nFILE "+p),print("\n".join(f"{i}: {line}" for i,line in enumerate(Path(p).read_text().splitlines(),1) if start<=i<=end))) for p,start,end in pairs]'
+Exit: 0
+
+
+FILE tests/qa/backend-core.test.mjs
+150:     assert.equal(new URL(requests.at(-1).url).searchParams.get('action_id'), value);
+151:   }
+152: });
+153: 
+154: test('BE property control: seeded JSON values preserve approved and executed intent', async () => {
+155:   let state = 0x53454e54;
+156:   const next = () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0);
+157:   for (let index = 0; index < 64; index++) {
+158:     const value = { amount: next() % 1000000, enabled: Boolean(next() & 1), tags: [`x-${next()}`, null], nested: { n: next() } };
+159:     const result = await makeClient().wrap({}, (arg) => arg)(value);
+160:     assert.deepEqual(JSON.parse(requests.at(-2).init.body).arguments, result);
+161:   }
+162: });
+163: 
+164: test('BE control: circular and BigInt arguments fail before request or execution', async () => {
+165:   const circular = {};
+166:   circular.self = circular;
+167:   let executions = 0;
+168:   for (const arg of [circular, { amount: 1n }]) {
+169:     await assert.rejects(makeClient().wrap({}, () => executions++)(arg), TypeError);
+170:   }
+171:   assert.equal(requests.length, 0);
+172:   assert.equal(executions, 0);
+173: });
+174: 
+175: test('BE control: tenant settings and legacy audit list use expected wire shapes', async () => {
+176:   respond(({ url, init }) => url.includes('/audit-events') ? json([]) : json(init.body ? JSON.parse(init.body) : {}));
+177:   const client = makeClient();
+178:   assert.deepEqual(await client.setDefaultApprovers(['qa@example.invalid']), { default_approvers: ['qa@example.invalid'] });
+179:   assert.equal(requests[0].init.method, 'PATCH');
+180:   assert.deepEqual(await client.listAuditEvents(), []);
+181:   assert.equal(new URL(requests.at(-1).url).search, '');
+182: });
+183: 
+184: test('BE idempotency scope control: replayed approval does not deduplicate wrapped side effects', async () => {
+185:   let executions = 0;
+186:   const wrapped = makeClient().wrap({ idempotencyKey: 'qa-one-approval' }, () => ++executions);
+187:   assert.deepEqual(await Promise.all([wrapped(), wrapped()]), [1, 2]);
+188:   assert.equal(executions, 2); // Documented creation-only guarantee, not an assertion of exactly-once execution.
+189:   assert.equal(requests.filter(({ init }) => init.method === 'POST').length, 2);
+190: });
+191: 
+192: test('BE-001: mutation during approval wait must not change the executed intent', { todo: 'BE-001 mutable approval arguments' }, async () => {
+193:   let release;
+194:   let started;
+195:   const waiting = new Promise((resolve) => { started = resolve; });
+196:   respond(({ init }) => {
+197:     if (init.method === 'POST') return json(pending);
+198:     started();
+199:     return new Promise((resolve) => { release = () => resolve(json(approved)); });
+200:   });
+201:   const args = { transfer: { amount: 1, recipient: 'qa-reviewed' } };
+202:   let executed;
+203:   const result = makeClient().wrap({}, (arg) => { executed = structuredClone(arg); })(args);
+204:   await waiting;
+205:   const reviewed = JSON.parse(requests[0].init.body).arguments;
+206:   args.transfer.amount = 999;
+207:   args.transfer.recipient = 'qa-changed';
+208:   release();
+209:   await result;
+210:   assert.deepEqual(executed, reviewed, 'executed payload must match the human-reviewed request');
+211: });
+212: 
+213: test('BE-002: approval received after deadline must not execute the action', { todo: 'BE-002 local deadline is not enforced on terminal response' }, async () => {
+214:   let now = 1000;
+215:   Date.now = () => now;
+216:   respond(({ init }) => {
+217:     if (init.method === 'POST') return json(pending);
+218:     now = 3000;
+219:     return json(approved);
+220:   });
+221:   let executions = 0;
+222:   const result = await makeClient().wrap({ timeoutSeconds: 1 }, () => ++executions)().catch((error) => error);
+223:   assert.equal(executions, 0, 'a late approval must not run the protected action');
+224:   assert.ok(result instanceof ApprovalTimeout);
+225: });
+226: 
+227: test('BE-002: a stalled request must settle at the approval deadline', { todo: 'BE-002 fetch has no deadline or abort signal' }, async () => {
+228:   let release;
+229:   respond(() => new Promise((resolve) => { release = () => resolve(json(approved)); }));
+230:   const result = makeClient().waitForDecision('qa-action', 0.01).then(
+231:     () => 'approved', (error) => error instanceof ApprovalTimeout ? 'timeout' : error.name,
+232:   );
+233:   let watchdog;
+234:   const observed = await Promise.race([result, new Promise((resolve) => { watchdog = setTimeout(() => resolve('still-pending'), 80); })]);
+235:   clearTimeout(watchdog);
+236:   release();
+237:   await result;
+238:   assert.equal(observed, 'timeout');
+239: });
+240: 
+241: test('BE-003: lossy non-JSON arguments must fail before approval or execution', { todo: 'BE-003 serializer accepts silently altered values' }, async () => {
+242:   const cases = [
+243:     { amount: Number.NaN }, { amount: Infinity }, { hidden: undefined },
+244:     { targets: new Set(['qa-target']) }, { targets: new Map([['recipient', 'qa-target']]) },
+245:     { operation: () => 'qa-action' },
+246:   ];
+247:   const accepted = [];
+248:   for (const value of cases) {
+249:     let executed = false;
+250:     await makeClient().wrap({}, () => { executed = true; })(value).catch((error) => {
+251:       assert.ok(error instanceof TypeError);
+252:     });
+253:     if (executed) accepted.push(Object.keys(value)[0]);
+254:   }
+255:   assert.deepEqual(accepted, [], 'silently omitted or changed data must not execute under a different approved payload');
+256:   assert.equal(requests.length, 0);
+257: });
+258: 
+259: test('BE-004: legacy fallback polling must be paced', { todo: 'BE-004 no delay between 404/pending poll attempts' }, async () => {
+260:   respond(async ({ url }) => {
+261:     // A small real RTT keeps this bounded while making excessive polling visible.
+262:     await new Promise((resolve) => setTimeout(resolve, 2));
+263:     return url.includes('/wait?') ? json({ detail: 'No wait route' }, 404) : json(pending);
+264:   });
+265:   await assert.rejects(makeClient().waitForDecision('qa-action', 0.1), ApprovalTimeout);
+266:   assert.ok(requests.length <= 4, `100 ms polling window made ${requests.length} requests; fallback must be paced`);
+267: });
+268: 
+269: test('BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions', { timeout: 5000 }, async (t) => {
+270:   const wire = [];
+271:   const server = createServer(async (request, response) => {
+272:     let body = '';
+273:     for await (const chunk of request) body += chunk;
+274:     wire.push({ method: request.method, path: request.url, headers: request.headers, body });
+275:     response.setHeader('Content-Type', 'application/json');
+276:     if (request.headers.authorization !== '[REDACTED]') {
+277:       response.writeHead(403).end(JSON.stringify({ detail: 'Synthetic permission denied' }));
+278:     } else {
+279:       response.end(JSON.stringify(request.method === 'POST' ? pending : approved));
+280:     }
+281:   });
+282:   await new Promise((resolve, reject) => {
+283:     server.once('error', reject);
+284:     server.listen(0, '127.0.0.1', resolve);
+285:   });
+286:   t.after(async () => {
+287:     server.closeAllConnections();
+288:     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+289:   });
+290:   const address = server.address();
+291:   const localUrl = `http://127.0.0.1:${address.port}`;
+292:   globalThis.fetch = (url, init) => {
+293:     assert.equal(new URL(url).origin, localUrl, 'only the ephemeral loopback server may receive real requests');
+294:     return originalFetch(url, init);
+295:   };
+296:   let allowedExecutions = 0;
+297:   let deniedExecutions = 0;
+298:   const allowed = makeClient({ apiKey: 'qa-loopback-allowed', apiUrl: localUrl });
+299:   const denied = makeClient({ apiKey: 'qa-loopback-denied', apiUrl: localUrl });
+300:   await Promise.all([
+301:     allowed.wrap({ functionName: 'qaContract', idempotencyKey: 'qa-loopback-id', timeoutSeconds: 30.5 }, (args) => {
+302:       allowedExecutions++;
+303:       return args.amount;
+304:     })({ amount: 42 }),
+305:     assert.rejects(denied.wrap({}, () => deniedExecutions++)(), (error) => error instanceof SentinelAPIError && error.statusCode === 403),
+306:   ]);
+307:   assert.equal(allowedExecutions, 1);
+308:   assert.equal(deniedExecutions, 0);
+309:   const post = wire.find((entry) => entry.method === 'POST' && entry.headers.authorization === '[REDACTED]');
+310:   assert.deepEqual(JSON.parse(post.body), {
+311:     function_name: 'qaContract', arguments: { amount: 42 }, risk_level: 'medium', approvers: [], timeout_seconds: 31,
+312:   });
+313:   assert.equal(post.path, '/v1/approvals');
+314:   assert.equal(post.headers['idempotency-key'], 'qa-loopback-id');
+315:   assert.equal(post.headers['content-type'], 'application/json');
+316:   assert.match(post.headers['user-agent'], /^sentinel-sdk-js\//);
+317:   assert.equal(wire.filter((entry) => entry.headers.authorization === '[REDACTED]').length, 1);
+318:   assert.ok(wire.some((entry) => entry.method === 'GET' && entry.path.startsWith('/v1/approvals/qa-action/wait?timeout=')));
+319: });
+320: 
+321: test('BE-005: plain-text HTTP error retains useful response detail', { todo: 'BE-005 response body is consumed before text fallback' }, async () => {
+322:   respond(() => new Response('Synthetic gateway unavailable', { status: 502 }));
+323:   await assert.rejects(makeClient().getTenant(), (error) => {
+324:     assert.ok(error instanceof SentinelAPIError);
+325:     assert.equal(error.statusCode, 502);
+326:     assert.match(error.message, /Synthetic gateway unavailable/);
+327:     return true;
+328:   });
+329: });
+
+FILE tests/qa/ux-docs.test.mjs
+1: import { afterEach, beforeEach, test } from 'node:test';
+2: import assert from 'node:assert/strict';
+3: import { readFileSync } from 'node:fs';
+4: import { spawnSync } from 'node:child_process';
+5: import ts from 'typescript';
+6: import * as sdk from '../../dist/index.js';
+7: 
+8: // Execute the actual README blocks after replacing only their external inputs:
+9: // an SDK import supplied as function arguments, a synthetic process.env object,
+10: // a local fetch stub, and a payment service stub. No credential files are read.
+11: const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
+12: const contributorGuide = readFileSync(new URL('../../CONTRIBUTING.md', import.meta.url), 'utf8');
+13: const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+14: const originalFetch = globalThis.fetch;
+15: let requests;
+16: 
+17: function blockUnder(heading) {
+18:   const section = readme.split(`## ${heading}\n`)[1]?.split('\n## ')[0];
+19:   const block = section?.match(/```typescript\n([\s\S]*?)\n```/);
+20:   assert.ok(block, `README ${heading} TypeScript block exists`);
+21:   return block[1];
+22: }
+23: 
+24: function program(heading, extras = {}) {
+25:   const code = ts.transpileModule(blockUnder(heading), {
+26:     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+27:   }).outputText.replace(/import[\s\S]*?from ['"]sentinel-oversight['"];\s*/g, '');
+28:   const bindings = { ...sdk, ...extras };
+29:   return () => new AsyncFunction(...Object.keys(bindings), code)(...Object.values(bindings));
+30: }
+31: 
+32: function decision(status = 'approved') {
+33:   return new Response(JSON.stringify({
+34:     action_id: 'act_ux_fixture', status, decision: status,
+35:     reason: status === 'rejected' ? 'Review declined' : null,
+36:   }), { status: 200 });
+37: }
+38: 
+39: function quickstart(stripe) {
+40:   return program('Quick start', {
+41:     configure: (config) => sdk.configure({ ...config, apiUrl: 'http://127.0.0.1:1' }),
+42:     process: { env: { SENTINEL_API_KEY: 'synthetic-noncredential' } },
+43:     stripe,
+44:   });
+45: }
+46: 
+47: beforeEach(() => {
+48:   requests = [];
+49:   globalThis.fetch = async (url, init = {}) => {
+50:     assert.equal(new URL(url).origin, 'http://127.0.0.1:1');
+51:     requests.push({ url: String(url), body: init.body ? JSON.parse(init.body) : null });
+52:     return decision();
+53:   };
+54: });
+55: 
+56: afterEach(() => { globalThis.fetch = originalFetch; });
+57: 
+58: test('README quickstart waits for a decision before calling the payment stub', async () => {
+59:   let releaseDecision;
+60:   let reachedWait;
+61:   const waitEntered = new Promise((resolve) => { reachedWait = resolve; });
+62:   const waitResponse = new Promise((resolve) => { releaseDecision = resolve; });
+63:   const paymentCalls = [];
+64:   globalThis.fetch = async (url, init = {}) => {
+65:     assert.equal(new URL(url).origin, 'http://127.0.0.1:1');
+66:     requests.push({ url: String(url), body: init.body ? JSON.parse(init.body) : null });
+67:     if (init.method === 'POST') return decision('pending');
+68:     reachedWait();
+69:     return waitResponse;
+70:   };
+71:   const run = quickstart({ transfers: { create: async (value) => {
+72:     paymentCalls.push(value);
+73:     return { id: 'synthetic-receipt' };
+74:   } } });
+75:   const pending = run();
+76:   await waitEntered;
+77:   assert.deepEqual(paymentCalls, []);
+78:   releaseDecision(decision());
+79:   await pending;
+80:   assert.deepEqual(paymentCalls, [{ amount: 50_000_00, destination: 'acct_acme_corp' }]);
+81:   assert.deepEqual(requests[0].body.arguments, { args: [50_000_00, 'acct_acme_corp'] });
+82: });
+83: 
+84: test('README quickstart rejects without calling the payment stub', async () => {
+85:   let called = false;
+86:   globalThis.fetch = async () => decision('rejected');
+87:   await assert.rejects(quickstart({ transfers: { create: async () => { called = true; } } }), sdk.ApprovalRejected);
+88:   assert.equal(called, false);
+89: });
+90: 
+91: test('README Errors block reports documented rejected, timed-out and HTTP errors', async () => {
+92:   for (const error of [
+93:     new sdk.ApprovalRejected('Review declined', 'act_ux_fixture'),
+94:     new sdk.ApprovalTimeout('act_ux_fixture', 10),
+95:     new sdk.SentinelAPIError(422, 'Invalid approval'),
+96:   ]) {
+97:     const messages = [];
+98:     await program('Errors', {
+99:       wireTransfer: async () => { throw error; },
+100:       console: { log: (...values) => messages.push(values) },
+101:     })();
+102:     assert.equal(messages.length, 1, error.name);
+103:     assert.ok(messages[0].some((value) => String(value).length > 0));
+104:   }
+105: });
+106: 
+107: test('missing SDK configuration has an actionable local error', () => {
+108:   assert.throws(() => new sdk.SentinelClient({ apiKey: '' }), {
+109:     name: 'SentinelConfigError', message: 'configure({ apiKey }) — apiKey is required',
+110:   });
+111: });
+112: 
+113: test('explicit action names and synchronous return values remain usable', async () => {
+114:   const client = new sdk.SentinelClient({ apiKey: 'synthetic-noncredential', apiUrl: 'http://127.0.0.1:1' });
+115:   const wrapped = client.wrap({ functionName: 'quoteTotal' }, (amount) => amount * 2);
+116:   const result = wrapped(21);
+117:   assert.ok(result instanceof Promise);
+118:   assert.equal(await result, 42);
+119:   assert.equal(requests[0].body.function_name, 'quoteTotal');
+120: });
+121: 
+122: test('public VERSION export supplies the contributor version-report workaround', () => {
+123:   const result = spawnSync(process.execPath, [
+124:     '--input-type=module', '-e',
+125:     "import { VERSION } from 'sentinel-oversight'; console.log(VERSION)",
+126:   ], { cwd: new URL('../../', import.meta.url), encoding: 'utf8' });
+127:   assert.equal(result.status, 0, result.stderr);
+128:   assert.equal(result.stdout.trim(), sdk.VERSION);
+129: });
+130: 
+131: test('UX-001 README quickstart should send a recognizable action name', {
+132:   todo: 'UX-001: inline anonymous callback is sent as function_name anonymous',
+133: }, async () => {
+134:   await quickstart({ transfers: { create: async () => ({ id: 'synthetic-receipt' }) } })();
+135:   assert.equal(requests[0].body.function_name, 'wireTransfer');
+136: });
+137: 
+138: test('UX-002 README Errors block should propagate transport failures', {
+139:   todo: 'UX-002: the catch example silently swallows errors outside three listed classes',
+140: }, async () => {
+141:   const client = new sdk.SentinelClient({ apiKey: 'synthetic-noncredential', apiUrl: 'http://127.0.0.1:1' });
+142:   const transportError = new TypeError('Synthetic connection failure');
+143:   globalThis.fetch = async () => { throw transportError; };
+144:   const run = program('Errors', {
+145:     wireTransfer: client.wrap({ functionName: 'wireTransfer' }, async () => 'unused'),
+146:     console: { log: () => {} },
+147:   });
+148:   await assert.rejects(run, (error) => error === transportError);
+149: });
+150: 
+151: test('UX-002 README Errors block should propagate the approved business operation failure', {
+152:   todo: 'UX-002: a payment error after approval also vanishes in the example catch',
+153: }, async () => {
+154:   const client = new sdk.SentinelClient({ apiKey: 'synthetic-noncredential', apiUrl: 'http://127.0.0.1:1' });
+155:   const operationError = new Error('Synthetic payment failure');
+156:   const run = program('Errors', {
+157:     wireTransfer: client.wrap({ functionName: 'wireTransfer' }, async () => { throw operationError; }),
+158:     console: { log: () => {} },
+159:   });
+160:   await assert.rejects(run, (error) => error === operationError);
+161: });
+162: 
+163: test('UX-003 documented SDK version command should complete successfully', {
+164:   todo: 'UX-003: package.json is not an exported package subpath',
+165: }, () => {
+166:   const snippet = contributorGuide.match(/node -e "([^"]+)"/);
+167:   assert.ok(snippet, 'CONTRIBUTING version-reporting command exists');
+168:   const result = spawnSync(process.execPath, ['-e', snippet[1]], {
+169:     cwd: new URL('../../', import.meta.url), encoding: 'utf8',
+170:   });
+171:   assert.equal(result.status, 0, result.stderr);
+172:   assert.equal(result.stdout.trim(), sdk.VERSION);
+173: });
+
+FILE tests/qa/frontend-consumer.mts
+1: // FE-002: ordinary explicitly typed framework callbacks must be accepted.
+2: import { gated as gateAi } from 'sentinel-oversight/ai-sdk';
+3: import { gated as gateAgents } from 'sentinel-oversight/openai-agents';
+4: import { gated as gateMastra } from 'sentinel-oversight/mastra';
+5: 
+6: const aiTool = gateAi({
+7:   execute: async (input: { amount: number }) => input.amount,
+8: });
+9: const agentsTool = gateAgents({
+10:   invoke: async (_context: object, input: string) => JSON.parse(input),
+11: });
+12: const mastraTool = gateMastra({
+13:   execute: async ({ context }: { context: { amount: number } }) => context.amount,
+14: });
+15: 
+16: void aiTool;
+17: void agentsTool;
+18: void mastraTool;
+
+FILE tests/qa/frontend-consumer-control.mts
+1: // Positive control: package exports resolve under a strict NodeNext consumer.
+2: import { SentinelClient } from 'sentinel-oversight';
+3: import { gated as gateAi } from 'sentinel-oversight/ai-sdk';
+4: import { gated as gateAgents } from 'sentinel-oversight/openai-agents';
+5: import { gated as gateMastra } from 'sentinel-oversight/mastra';
+6: import { SentinelCallbackHandler } from 'sentinel-oversight/langchain';
+7: 
+8: const client = new SentinelClient({ apiKey: 'qa-synthetic', apiUrl: 'https://qa.invalid' });
+9: gateAi({ execute: async (...args: unknown[]) => args }, { client });
+10: gateAgents({ invoke: async (...args: unknown[]) => args }, { client });
+11: gateMastra({ execute: async (...args: unknown[]) => args }, { client });
+12: new SentinelCallbackHandler({ client });

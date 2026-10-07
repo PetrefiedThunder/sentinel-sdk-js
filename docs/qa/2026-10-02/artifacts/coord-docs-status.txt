@@ -1,0 +1,100 @@
+Start: 2026-10-03T01:46:32+00:00
+End: 2026-10-03T01:46:32+00:00
+Command: sh -c 'git diff -- package.json && cat docs/qa/2026-10-02/UX-REPORT.md && cat docs/qa/2026-10-02/REVIEW.md && rg --files docs/qa/2026-10-02 -g "*REPORT.md"'
+Exit: 0
+
+diff --git a/package.json b/package.json
+index e94505c..f5396a0 100644
+--- a/package.json
++++ b/package.json
+@@ -35,7 +35,7 @@
+   "scripts": {
+     "build": "tsc -p tsconfig.json",
+     "typecheck": "tsc --noEmit -p tsconfig.json",
+-    "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs",
++    "test": "node --test tests/serializable.test.mjs tests/idempotency.test.mjs tests/timeout.test.mjs tests/pagination.test.mjs tests/ai-sdk.test.mjs tests/openai-agents.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs",
+     "smoke": "node tests/smoke.mjs",
+     "demo": "node examples/demo.mjs",
+     "gen:types": "openapi-typescript https://api.pauseapi.app/openapi.json -o src/generated/api.d.ts",
+# UX QA report — developer experience
+
+PR: opened by orchestrator
+CI status: pending at time of writing
+
+This repository has no application UI. The UX pass therefore reviewed the experience of integrating the SDK: installation guidance, approval feedback, public API usage, unexpected failures, and bug reporting. Browser, axe/WCAG, keyboard, screen-reader, mobile/responsive, and screenshot checks are not applicable. Executable transcripts are the evidence artifact.
+
+## Result
+
+Three findings: **Medium=2, Low=1**. No product changes. The final isolated command `node --test tests/qa/ux-docs.test.mjs` completed with **10 tests: 6 passing, 0 failures, 4 TODO expected failures**. Four expected-failure assertions cover three findings because UX-002 affects both transport errors and errors from the approved business operation.
+
+Evidence: [final test transcript](artifacts/ux-final-docs-regressions.txt), [initial test transcript](artifacts/ux-first-docs-regressions.txt), [source inspection](artifacts/ux-docs-and-client.txt), [README line references](artifacts/ux-readme-lines-and-existing-tests.txt), and [separate pass log](UX-LOG.md).
+
+## Findings
+
+| ID | Severity | Group | Title | Exact reproduction | Expected vs actual | Evidence | Suggested fix |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| UX-001 | Medium | UX / developer experience | README quickstart labels its payment action `anonymous` | After a local build, run `node --test --test-name-pattern='UX-001' tests/qa/ux-docs.test.mjs`. The test extracts the actual README quickstart, substitutes synthetic configuration and a payment stub, and captures the approval request with a fetch stub. | Expected: an approver can identify the example operation as `wireTransfer`. Actual: `function_name` is `anonymous`, because an inline arrow passed as an argument has no inferred name. This removes the operation label from the approval request; it does not itself bypass approval. | `README.md:35-42`; fallback in `src/index.ts:389`; test `UX-001 README quickstart should send a recognizable action name` at `tests/qa/ux-docs.test.mjs:131`; transcript shows `anonymous` vs `wireTransfer`. | Add `functionName: 'wireTransfer'` to the example options, or use a named function expression. Document the same requirement for anonymous callbacks/minified code. The passing explicit-action-name test verifies the existing option works. |
+| UX-002 | Medium | UX / developer experience | README error handling silently discards network and business-operation failures | Run `node --test --test-name-pattern='UX-002' tests/qa/ux-docs.test.mjs`. One probe makes fetch throw a synthetic `TypeError`; the other returns approval and then makes the wrapped payment operation throw a synthetic `Error`. Both execute the actual README Errors block. | Expected: an error not intentionally handled by the three documented branches propagates to the caller or is explicitly reported. Actual: the catch falls through without logging or rethrowing; its surrounding async operation resolves successfully despite the failed operation. | `README.md:91-101`; test cases at `tests/qa/ux-docs.test.mjs:138` and `:151`; transcript shows `Missing expected rejection` for both. | End the example with an `else { throw e; }` fallback. Explain that underlying tool/payment failures and native transport errors also propagate through a wrapped call. |
+| UX-003 | Low | UX / developer experience | Contributor version-reporting command fails | Run the documented command from the checkout or an installed consumer: `node -e "console.log(require('sentinel-oversight/package.json').version)"`. Offline reproduction is retained by `node --test --test-name-pattern='UX-003' tests/qa/ux-docs.test.mjs`. | Expected: prints the SDK version requested for a bug report. Actual: exits 1 with `ERR_PACKAGE_PATH_NOT_EXPORTED`, because `./package.json` is absent from package exports. | `CONTRIBUTING.md:26`; `package.json:8-29`; test at `tests/qa/ux-docs.test.mjs:163`; transcript includes the exact exception. | Document the already-supported public export: `node --input-type=module -e "import { VERSION } from 'sentinel-oversight'; console.log(VERSION)"`. A passing subprocess test confirms this workaround. |
+
+## Adapted Nielsen heuristics
+
+| Heuristic | Assessment and evidence |
+| --- | --- |
+| Visibility of system status | Approval wait is a pending Promise. The quickstart test holds the decision response and verifies that the payment stub has not run, then releases approval. No live email/dashboard status was asserted. |
+| Match between system and user language | UX-001: the quickstart's recognizable business operation becomes `anonymous` on the wire. Risk-level terminology and rejection reasons otherwise carry through. |
+| User control and freedom | Rejection prevents the callback; documented timeout handling is exercised with the actual error class. Cancellation, retry races, and timeout enforcement belong to the backend pass. |
+| Consistency and standards | Examples use `configure`/`oversight` consistently; page properties use the documented camelCase mapping. Sync functions are accepted but wrappers return Promises, verified by a passing case. |
+| Error prevention | Missing API configuration produces an actionable local `SentinelConfigError`. No API key is obtained or required for this pass. |
+| Recognition rather than recall | UX-001 removes the visible business operation label. The existing `functionName` option provides an immediate workaround without a product change. |
+| Flexibility and efficiency | Both the global convenience API and explicit client wrapper are exercised. Parameter forwarding and the returned value are verified without framework services. |
+| Minimalist presentation | README is short enough to navigate; no cosmetic defect was raised. Its payment example assumes an externally initialized `stripe` client, so the execution harness supplies a synthetic equivalent. |
+| Error diagnosis and recovery | UX-002 loses unexpected failures; UX-003 blocks the prescribed bug-report command. Documented rejection, timeout, and HTTP error branches produce messages in the passing tests. Loss of non-JSON HTTP detail is owned by the backend pass, not duplicated here. |
+| Help and documentation | README and contributor instructions were inspected against implementation. Git installation/package contents are owned by frontend QA. External links, publication status, server notification behavior, and server audit guarantees were not contacted or verified. |
+
+## Method and limits
+
+The quickstart and Errors examples are read from README at test runtime and transpiled using the repository's existing TypeScript dependency. Imports are supplied from the built local SDK. The harness replaces the environment object with a synthetic value, adds a loopback API base URL, intercepts every fetch, and replaces the payment client with a local stub. No HTTP request leaves the process. The contributor command runs in a subprocess against the local package self-reference.
+
+Approval success and rejection exercise the full local wrapper. Timeout messaging uses an injected `ApprovalTimeout` to test the documented catch branch; it is **not** proof of timeout enforcement. Core timeout behavior, transport coverage, contract/security behavior and browser/framework compatibility are reported by their respective passes. Coverage totals are consolidated in COVERAGE.md; this pass does not claim independent coverage numbers.
+
+The exploratory charter had a 20-minute maximum and ended early after the focused walkthrough and reproducible findings were complete. Actual UTC bounds and all commands are in UX-LOG.md. A minor demo stdout timing concern was considered and excluded from findings to prioritize the more consequential, executable defects above.
+# Independent review of QA evidence
+
+PR: opened by orchestrator
+CI status: pending at time of writing
+
+This is a review of the three QA passes, not a fourth QA group. It checks the evidence, test safety and change scope independently. Review started at approximately 2026-10-03T01:44:30Z. Checkout identity was confirmed as `717392b`, branch `qa/2026-10-02-sweep`, repository `PetrefiedThunder/sentinel-sdk-js`.
+
+## Executable evidence
+
+At 2026-10-03T01:45:18Z the independent reviewer ran the four new QA test files with the installed real `@langchain/core` dependency. Result: **78 tests, 54 pass, 24 TODO, zero unexpected failures, zero skipped, exit 0**. Every TODO failed at the intended assertion; none failed because of missing imports, tool setup or network access. See [independent test output](artifacts/review-independent-qa.txt).
+
+The real LangChain tests independently establish both defects in FE-001: default callback flags omit the approval request, and enabling the callback alone leaves rejection/timeout errors swallowed. Controls setting both `ignoreAgent: false` and `raiseError: true` block rejected/timed-out tool execution and allow one approved execution. Critical severity is supported for an approval-gating SDK.
+
+BE-001, BE-002 and BE-003 are distinct and supported High findings: mutable arguments differ from reviewed data; a stalled request exceeds its deadline and a late approval runs the operation; lossy serialization hides argument data while executing the original values. BE-004 reproduced 44 requests within its approximately 100 ms window. BE-005 reproduced an empty `[502] ` error despite a useful text response.
+
+FE-002 fails on TS2322 for ordinary typed callbacks in three adapters while the strict NodeNext export-resolution control passes. FE-003 reproduces omitted literal and generated idempotency keys across all four adapters. The README examples reproduce UX-001/002/003 at their intended assertions.
+
+## QA change review
+
+- No product source or deployment files were modified at the first scope checkpoint. Tests use synthetic inputs and local stubs; the single real HTTP test asserts that its target is an ephemeral loopback origin before forwarding to native fetch.
+- Each test file runs in its own Node test process. Fetch and clock patches are restored within the backend file; no concurrent tests within that file were enabled.
+- The optional real LangChain dependency is outside the product dependency tree. Its tests skip explicitly when unavailable, so ordinary consumers do not acquire that dependency.
+- The new tests use Node APIs available at the declared Node 18.17 minimum; actual runtime compatibility is recorded by the coordinator's runtime checks, not inferred from this inspection alone.
+- Do not describe clean-source `npm pack` evidence as proof of a broken published npm package. The checked-in publish workflow builds explicitly, and `prepublishOnly` builds during `npm publish`.
+- BE-004 is timing-sensitive: on an unusually slow host its TODO can pass because few requests fit within 100 ms. The source's missing fallback delay and the recorded request count support the finding; a future fix should replace the wall-clock probe with deterministic scheduling if feasible.
+
+## Corrections requested during review
+
+1. Preserve the original package description text; changing the em dash to a JSON escape is an unrelated serialization side effect.
+2. Keep the expanded `npm test` command portable to Node 18 on Windows. Shell globs expand on Unix but not `cmd.exe`; use explicit test filenames rather than depending on newer Node glob expansion.
+
+Final correction status and consolidated-report consistency will be checked once the coordinator finishes the required documents.
+
+## Review limits
+
+No credentials, environment files, production endpoints, remote databases or billing systems were inspected. CodeRabbit was not run because its remote review API is outside the orchestrator's public-package-only network allowance; local `review-pr` and `code-review` guidance informed this review. Published package retrieval, full version matrices of external frameworks, remote CI and the eventual draft PR are outside this review's evidence.
+docs/qa/2026-10-02/BACKEND-REPORT.md
+docs/qa/2026-10-02/UX-REPORT.md
+docs/qa/2026-10-02/DEPENDENCY-REPORT.md

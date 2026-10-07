@@ -1,0 +1,14 @@
+Start: 2026-10-03T01:42:15+00:00
+End: 2026-10-03T01:42:15+00:00
+Command: node node_modules/typescript/bin/tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext tests/qa/frontend-consumer.mts
+Exit: 2
+
+tests/qa/frontend-consumer.mts(7,3): error TS2322: Type '(input: { amount: number; }) => Promise<number>' is not assignable to type '(...args: unknown[]) => unknown'.
+  Types of parameters 'input' and 'args' are incompatible.
+    Type 'unknown' is not assignable to type '{ amount: number; }'.
+tests/qa/frontend-consumer.mts(10,3): error TS2322: Type '(_context: object, input: string) => Promise<any>' is not assignable to type '(...args: unknown[]) => unknown'.
+  Types of parameters '_context' and 'args' are incompatible.
+    Type 'unknown' is not assignable to type 'object'.
+tests/qa/frontend-consumer.mts(13,3): error TS2322: Type '({ context }: { context: { amount: number; }; }) => Promise<number>' is not assignable to type '(...args: unknown[]) => unknown'.
+  Types of parameters '__0' and 'args' are incompatible.
+    Type 'unknown' is not assignable to type '{ context: { amount: number; }; }'.

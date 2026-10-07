@@ -1,0 +1,9 @@
+Start: 2026-10-03T01:40:35+00:00
+End: 2026-10-03T01:40:35+00:00
+Command: sh -c 'node --version && npm --version && git rev-parse HEAD && git status --short'
+Exit: 1
+
+v26.7.0
+Exit prior to config file resolving
+cause
+double-loading config "/dev/null" as "global", previously loaded as "user"

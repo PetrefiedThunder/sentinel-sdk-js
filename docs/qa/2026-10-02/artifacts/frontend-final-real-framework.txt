@@ -1,0 +1,96 @@
+Start: 2026-10-03T01:47:59+00:00
+End: 2026-10-03T01:47:59+00:00
+Command: env SENTINEL_QA_LANGCHAIN_ROOT=/private/tmp/sentinel-qa-tools/node_modules/@langchain/core node --test tests/qa/frontend-langchain.integration.test.mjs
+Exit: 0
+
+Error in handler SentinelCallbackHandler, handleToolStart: ApprovalRejected: Approval rejected by Sentinel
+Error in handler SentinelCallbackHandler, handleToolStart: ApprovalRejected: Approval rejected by Sentinel
+Error in handler SentinelCallbackHandler, handleToolStart: ApprovalTimeout: Approval timed out after 1s
+Error in handler SentinelCallbackHandler, handleToolStart: ApprovalTimeout: Approval timed out after 1s
+⚠ FE-001 real LangChain tool requests approval before executing (6.488708ms) # FE-001: ignoreAgent=true skips handleToolStart completely
+⚠ FE-001 real LangChain rejection blocks execution (0.312542ms) # FE-001: callback is skipped; absent raiseError also swallows errors
+⚠ FE-001 enabling callback alone still swallows rejection (0.591166ms) # FE-001: raiseError must also be true
+✔ LangChain control: callback enabled and raiseError propagates rejection (0.252542ms)
+⚠ FE-001 real LangChain timeout blocks execution (0.180542ms) # FE-001: callback is skipped; absent raiseError also swallows errors
+⚠ FE-001 enabling callback alone still swallows timeout (0.218292ms) # FE-001: raiseError must also be true
+✔ LangChain control: callback enabled and raiseError propagates timeout (0.155083ms)
+✔ LangChain control: callback enabled and approval allows one execution (0.129542ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 5
+ℹ duration_ms 162.841709
+
+✖ failing tests:
+
+test at tests/qa/frontend-langchain.integration.test.mjs:53:1
+⚠ FE-001 real LangChain tool requests approval before executing (6.488708ms) # FE-001: ignoreAgent=true skips handleToolStart completely
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:57:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:64:3
+⚠ FE-001 real LangChain rejection blocks execution (0.312542ms) # FE-001: callback is skipped; absent raiseError also swallows errors
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalRejected).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:66:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:70:3
+⚠ FE-001 enabling callback alone still swallows rejection (0.591166ms) # FE-001: raiseError must also be true
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalRejected).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:72:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:64:3
+⚠ FE-001 real LangChain timeout blocks execution (0.180542ms) # FE-001: callback is skipped; absent raiseError also swallows errors
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalTimeout).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:66:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/qa/frontend-langchain.integration.test.mjs:70:3
+⚠ FE-001 enabling callback alone still swallows timeout (0.218292ms) # FE-001: raiseError must also be true
+  AssertionError [ERR_ASSERTION]: Missing expected rejection (ApprovalTimeout).
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/frontend-langchain.integration.test.mjs:72:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }

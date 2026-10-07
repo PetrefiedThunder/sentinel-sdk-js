@@ -1,0 +1,93 @@
+Start: 2026-10-03T01:49:06+00:00
+End: 2026-10-03T01:49:06+00:00
+Command: python3 -c 'from pathlib import Path; files=["tests/qa/frontend-framework-runtime.mjs","tests/qa/frontend-framework-types.mts","docs/qa/2026-10-02/artifacts/frontend-actual-framework-types.txt","docs/qa/2026-10-02/artifacts/frontend-actual-framework-runtime.txt"]; [(print("FILE "+f),print("\n".join(f"{i}: {line}" for i,line in enumerate(Path(f).read_text().splitlines(),1)))) for f in files if Path(f).exists()]'
+Exit: 0
+
+FILE tests/qa/frontend-framework-runtime.mjs
+1: // Run from an isolated consumer containing ai, @openai/agents and zod.
+2: // This probe only calls local tool factories/functions, never model providers.
+3: import assert from 'node:assert/strict';
+4: import { tool as aiTool, jsonSchema } from 'ai';
+5: import { tool as agentsTool, RunContext } from '@openai/agents';
+6: import { z } from 'zod';
+7: import { ApprovalRejected } from 'sentinel-oversight';
+8: import { gated as gateAi } from 'sentinel-oversight/ai-sdk';
+9: import { gated as gateAgents } from 'sentinel-oversight/openai-agents';
+10: 
+11: for (const decision of ['approved', 'rejected']) {
+12:   const calls = [];
+13:   let executions = 0;
+14:   const client = {
+15:     async createApproval(options) { calls.push(options); return { action_id: 'qa-action' }; },
+16:     async waitForDecision() { return { action_id: 'qa-action', status: decision, decision }; },
+17:   };
+18:   const input = { amount: 7 };
+19:   const ai = gateAi(aiTool({
+20:     description: 'Local counter',
+21:     inputSchema: jsonSchema({ type: 'object', properties: { amount: { type: 'number' } }, required: ['amount'] }),
+22:     execute: async ({ amount }) => { executions++; return amount; },
+23:   }), { client, functionName: 'qa_ai' });
+24:   const agents = gateAgents(agentsTool({
+25:     name: 'qa_agents',
+26:     description: 'Local counter',
+27:     parameters: z.object({ amount: z.number() }),
+28:     execute: async ({ amount }) => { executions++; return amount; },
+29:   }), { client });
+30:   const operations = [
+31:     () => ai.execute(input, { toolCallId: 'qa-call', messages: [] }),
+32:     () => agents.invoke(new RunContext(), JSON.stringify(input)),
+33:   ];
+34:   for (const operation of operations) {
+35:     if (decision === 'approved') assert.equal(Number(await operation()), 7);
+36:     else await assert.rejects(operation, ApprovalRejected);
+37:   }
+38:   assert.equal(executions, decision === 'approved' ? 2 : 0);
+39:   assert.deepEqual(calls.map((call) => call.arguments), [input, input]);
+40:   console.log(JSON.stringify({ decision, approvals: calls.length, executions, result: 'PASS' }));
+41: }
+FILE tests/qa/frontend-framework-types.mts
+1: // FE-002 additional evidence using genuine public framework tool() factories.
+2: // Compile in an isolated consumer containing ai, @openai/agents and zod.
+3: import { tool as aiTool, jsonSchema } from 'ai';
+4: import { tool as agentsTool } from '@openai/agents';
+5: import { z } from 'zod';
+6: import { gated as gateAi } from 'sentinel-oversight/ai-sdk';
+7: import { gated as gateAgents } from 'sentinel-oversight/openai-agents';
+8: 
+9: const ai = aiTool({
+10:   description: 'Local counter',
+11:   inputSchema: jsonSchema<{ amount: number }>({ type: 'object', properties: { amount: { type: 'number' } }, required: ['amount'] }),
+12:   execute: async ({ amount }) => amount,
+13: });
+14: const agents = agentsTool({
+15:   name: 'qa_counter',
+16:   description: 'Local counter',
+17:   parameters: z.object({ amount: z.number() }),
+18:   execute: async ({ amount }) => amount,
+19: });
+20: gateAi(ai);
+21: gateAgents(agents);
+FILE docs/qa/2026-10-02/artifacts/frontend-actual-framework-types.txt
+1: Start: 2026-10-03T01:45:46+00:00
+2: End: 2026-10-03T01:45:47+00:00
+3: Command: node node_modules/typescript/bin/tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext /private/tmp/sentinel-qa-tools/frontend-framework-types.mts
+4: Exit: 2
+5: 
+6: ../../../../../private/tmp/sentinel-qa-tools/frontend-framework-types.mts(20,8): error TS2345: Argument of type '({ deferLoading?: boolean | undefined; title?: string | undefined; providerOptions?: SharedV4ProviderOptions | undefined; metadata?: JSONObject | undefined; ... 6 more ...; toModelOutput?: ((options: { ...; }) => ToolResultOutput | PromiseLike<...>) | undefined; } & { ...; } & { ...; } & { ...; } & { ...; }) | ({ .....' is not assignable to parameter of type 'AiSdkToolLike'.
+7:   Type '{ deferLoading?: boolean | undefined; title?: string | undefined; providerOptions?: SharedV4ProviderOptions | undefined; metadata?: JSONObject | undefined; ... 6 more ...; toModelOutput?: ((options: { ...; }) => ToolResultOutput | PromiseLike<...>) | undefined; } & { ...; } & { ...; } & { ...; } & { ...; }' is not assignable to type 'AiSdkToolLike'.
+8:     Types of property 'description' are incompatible.
+9:       Type 'string | ((options: { context: NoInfer<Context>; experimental_sandbox?: SandboxSession | undefined; }) => string) | undefined' is not assignable to type 'string | undefined'.
+10:         Type '(options: { context: NoInfer<Context>; experimental_sandbox?: SandboxSession | undefined; }) => string' is not assignable to type 'string'.
+11: ../../../../../private/tmp/sentinel-qa-tools/frontend-framework-types.mts(21,12): error TS2345: Argument of type 'FunctionTool<unknown, ZodObject<{ amount: ZodNumber; }, $strip>, string>' is not assignable to parameter of type 'FunctionToolLike'.
+12:   Types of property 'invoke' are incompatible.
+13:     Type '(runContext: RunContext<unknown>, input: string, details?: ToolCallDetails | undefined) => Promise<string>' is not assignable to type '(...args: unknown[]) => unknown'.
+14:       Types of parameters 'runContext' and 'args' are incompatible.
+15:         Type 'unknown' is not assignable to type 'RunContext<unknown>'.
+FILE docs/qa/2026-10-02/artifacts/frontend-actual-framework-runtime.txt
+1: Start: 2026-10-03T01:46:28+00:00
+2: End: 2026-10-03T01:46:29+00:00
+3: Command: node /private/tmp/sentinel-qa-tools/frontend-framework-runtime.mjs
+4: Exit: 0
+5: 
+6: {"decision":"approved","approvals":2,"executions":2,"result":"PASS"}
+7: {"decision":"rejected","approvals":2,"executions":0,"result":"PASS"}

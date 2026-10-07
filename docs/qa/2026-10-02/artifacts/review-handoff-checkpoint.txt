@@ -1,0 +1,41 @@
+Start: 2026-10-03T01:50:46+00:00
+End: 2026-10-03T01:50:47+00:00
+Command: python3 -c 'from pathlib import Path; import subprocess; print(subprocess.run(["git","status","--short"],capture_output=True,text=True).stdout); print("REPORTS"); print("\n".join(p.name for p in Path("docs/qa/2026-10-02").glob("*.md"))); print("TEST HELPERS"); print("\n".join(p.name for p in Path("tests/qa").glob("*"))); print("RECENT COORD COMMANDS"); p=Path("docs/qa/2026-10-02/artifacts/coord-commands.jsonl"); print("\n".join(p.read_text().splitlines()[-8:]))'
+Exit: 0
+
+ M package.json
+?? docs/
+?? tests/qa/
+
+REPORTS
+BACKEND-LOG.md
+DEPENDENCY-REPORT.md
+UX-REPORT.md
+FRONTEND-REPORT.md
+FRONTEND-LOG.md
+UX-LOG.md
+BACKEND-REPORT.md
+BOOTSTRAP-LOG.md
+PLAN.md
+REVIEW.md
+COORD-LOG.md
+REVIEW-LOG.md
+TEST HELPERS
+frontend-adapters.test.mjs
+known-defect.mjs
+frontend-consumer.mts
+frontend-consumer-control.mts
+frontend-langchain.integration.test.mjs
+backend-core.test.mjs
+frontend-framework-runtime.mjs
+ux-docs.test.mjs
+frontend-framework-types.mts
+RECENT COORD COMMANDS
+{"start": "2026-10-03T01:48:45+00:00", "end": "2026-10-03T01:48:45+00:00", "command": "python3 -", "exit": 0, "artifact": "coord-final-metrics.txt"}
+{"start": "2026-10-03T01:48:45+00:00", "end": "2026-10-03T01:48:46+00:00", "command": "npm exec --yes --package=node@18.17.1 -- node --trace-warnings --test tests/qa/backend-core.test.mjs", "exit": 1, "artifact": "coord-node18-warning-trace.txt"}
+{"start": "2026-10-03T01:49:17+00:00", "end": "2026-10-03T01:49:17+00:00", "command": "sh -c 'rg -n \"todo:|skip:|process.versions\" tests/qa/*.test.mjs && head -n 6 docs/qa/2026-10-02/artifacts/coord-final-node18.txt && cat docs/qa/2026-10-02/artifacts/review-node18-todo-exit-control.txt'", "exit": 0, "artifact": "coord-todo-inventory.txt"}
+{"start": "2026-10-03T01:49:47+00:00", "end": "2026-10-03T01:49:47+00:00", "command": "python3 -", "exit": 0, "artifact": "coord-node18-expected-failure-compat.txt"}
+{"start": "2026-10-03T01:49:58+00:00", "end": "2026-10-03T01:49:59+00:00", "command": "npm exec --offline --yes --package=node@18.17.1 -- node --test tests/ai-sdk.test.mjs tests/idempotency.test.mjs tests/openai-agents.test.mjs tests/pagination.test.mjs tests/serializable.test.mjs tests/timeout.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs", "exit": 0, "artifact": "coord-final-node18-compatible.txt"}
+{"start": "2026-10-03T01:49:58+00:00", "end": "2026-10-03T01:49:59+00:00", "command": "env SENTINEL_QA_LANGCHAIN_ROOT=/private/tmp/sentinel-qa-tools/node_modules/@langchain/core npm exec --offline --yes --package=node@24 -- node --test tests/ai-sdk.test.mjs tests/idempotency.test.mjs tests/openai-agents.test.mjs tests/pagination.test.mjs tests/serializable.test.mjs tests/timeout.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs", "exit": 0, "artifact": "coord-final-node24-compatible.txt"}
+{"start": "2026-10-03T01:49:58+00:00", "end": "2026-10-03T01:50:00+00:00", "command": "env SENTINEL_QA_LANGCHAIN_ROOT=/private/tmp/sentinel-qa-tools/node_modules/@langchain/core /private/tmp/sentinel-qa-tools/node_modules/.bin/c8 --all --src dist --include 'dist/**/*.js' --exclude 'dist/generated/**' --reporter=text --reporter=json-summary --reporter=json --reports-dir docs/qa/2026-10-02/artifacts/coverage-final --temp-directory /private/tmp/sentinel-qa-v8-final node --test tests/ai-sdk.test.mjs tests/idempotency.test.mjs tests/openai-agents.test.mjs tests/pagination.test.mjs tests/serializable.test.mjs tests/timeout.test.mjs tests/qa/backend-core.test.mjs tests/qa/frontend-adapters.test.mjs tests/qa/frontend-langchain.integration.test.mjs tests/qa/ux-docs.test.mjs", "exit": 0, "artifact": "coord-coverage-final.txt"}
+{"start": "2026-10-03T01:50:17+00:00", "end": "2026-10-03T01:50:17+00:00", "command": "python3 -", "exit": 0, "artifact": "coord-coverage-uncovered.txt"}

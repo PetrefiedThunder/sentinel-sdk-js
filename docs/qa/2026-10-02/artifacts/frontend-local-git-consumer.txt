@@ -1,0 +1,16 @@
+Start: 2026-10-03T01:44:58+00:00
+End: 2026-10-03T01:44:59+00:00
+Command: npm install --prefix /private/tmp/sentinel-qa-git-consumer --no-audit --no-fund 'git+file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js#717392b'
+Exit: 128
+
+npm error code 128
+npm error An unknown git error occurred
+npm error command git --no-replace-objects clone --mirror -q file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js /private/tmp/sentinel-qa-npm-cache/_cacache/tmp/git-clones7QRmh/.git
+npm error remote: warning: lazy fetching disabled; some objects may not be available        
+npm error remote: fatal: could not fetch 16ca6e437f8f472ecdc3fd2ee19aca990a4bed94 from promisor remote        
+npm error error: git upload-pack: git-pack-objects died with error.
+npm error fatal: git upload-pack: aborting due to possible repository corruption on the remote side.
+npm error remote: aborting due to possible repository corruption on the remote side.
+npm error fatal: early EOF
+npm error fatal: fetch-pack: invalid index-pack output
+npm error A complete log of this run can be found in: /private/tmp/sentinel-qa-npm-cache/_logs/2026-10-03T01_44_59_036Z-debug-0.log

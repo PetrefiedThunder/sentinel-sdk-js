@@ -1,0 +1,145 @@
+Start: 2026-10-03T01:45:08+00:00
+End: 2026-10-03T01:45:08+00:00
+Command: python3 -c 'import pathlib; p=pathlib.Path("src/index.ts"); rows=p.read_text().splitlines(); [print(f"{i+1}: {rows[i]}") for start,end in [(116,129),(188,215),(296,325),(385,427)] for i in range(start-1,end)]; print("Test inventory:"); p=pathlib.Path("tests/qa/backend-core.test.mjs"); [print(f"{i}: {row}") for i,row in enumerate(p.read_text().splitlines(),1) if row.startswith("test(") or row.startswith("  test(")]'
+Exit: 0
+
+116: // ── Helpers ────────────────────────────────────────────────────────
+117: /** Fail-fast if args can't be JSON-encoded. Mirrors Python SDK 0.1.8 fix. */
+118: export function ensureJsonSerializable(value: unknown): void {
+119:   try {
+120:     JSON.stringify(value);
+121:   } catch (e) {
+122:     const msg = e instanceof Error ? e.message : String(e);
+123:     throw new TypeError(
+124:       `oversight arguments must be JSON-serializable. Got: ${msg}. ` +
+125:         `Convert Maps/Sets/BigInts/circular refs/class instances to plain ` +
+126:         `objects/arrays/strings/numbers/booleans/null before the call.`
+127:     );
+128:   }
+129: }
+188:   private async request<T = unknown>(
+189:     path: string,
+190:     init: RequestInit = {}
+191:   ): Promise<T> {
+192:     const url = `${this.apiUrl}${path}`;
+193:     const r = await fetch(url, {
+194:       ...init,
+195:       headers: {
+196:         'User-Agent': USER_AGENT,
+197:         'Content-Type': 'application/json',
+198:         Authorization: `Bearer ${this.apiKey}`,
+199:         ...(init.headers ?? {}),
+200:       },
+201:     });
+202:     if (!r.ok) {
+203:       let detail = '';
+204:       try {
+205:         const body = (await r.json()) as Record<string, unknown>;
+206:         const rawDetail = body['detail'] ?? body['message'] ?? body;
+207:         detail =
+208:           typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
+209:       } catch {
+210:         const txt = await r.text().catch(() => '');
+211:         detail = txt.slice(0, 500);
+212:       }
+213:       throw new SentinelAPIError(r.status, detail, url);
+214:     }
+215:     return (await r.json()) as T;
+296:   async waitForDecision(
+297:     actionId: string,
+298:     timeoutSeconds?: number
+299:   ): Promise<ApprovalRecord> {
+300:     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
+301:     const deadline = Date.now() + timeout * 1000;
+302:     while (true) {
+303:       const remaining = Math.max(
+304:         1,
+305:         Math.min(30, Math.floor((deadline - Date.now()) / 1000))
+306:       );
+307:       let data: ApprovalRecord;
+308:       try {
+309:         data = await this.request<ApprovalRecord>(
+310:           `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`
+311:         );
+312:       } catch (e) {
+313:         if (e instanceof SentinelAPIError && e.statusCode === 404) {
+314:           data = await this.getApproval(actionId);
+315:         } else {
+316:           throw e;
+317:         }
+318:       }
+319:       const status = data.status ?? data.decision;
+320:       if (status === 'approved' || status === 'rejected') return data;
+321:       if (Date.now() >= deadline) {
+322:         throw new ApprovalTimeout(actionId, timeout);
+323:       }
+324:     }
+325:   }
+385:   wrap<Args extends unknown[], R>(
+386:     opts: OversightOptions,
+387:     fn: (...args: Args) => Promise<R> | R
+388:   ): (...args: Args) => Promise<R> {
+389:     const fnName = opts.functionName || fn.name || 'anonymous';
+390:     return async (...args: Args): Promise<R> => {
+391:       // API requires `arguments` be a JSON object (dict). Two ergonomic
+392:       // shapes: if the caller passes exactly one plain-object arg, that
+393:       // object IS the arguments (named-style). Otherwise wrap positional
+394:       // args under `{ args: [...] }`.
+395:       const isPlainObject =
+396:         args.length === 1 &&
+397:         args[0] !== null &&
+398:         typeof args[0] === 'object' &&
+399:         !Array.isArray(args[0]);
+400:       const callArgs: Record<string, unknown> = isPlainObject
+401:         ? (args[0] as Record<string, unknown>)
+402:         : { args: args as unknown[] };
+403:       const idempotencyKey =
+404:         typeof opts.idempotencyKey === 'function'
+405:           ? opts.idempotencyKey()
+406:           : opts.idempotencyKey;
+407:       const approval = await this.createApproval({
+408:         functionName: fnName,
+409:         arguments: callArgs,
+410:         riskLevel: opts.riskLevel,
+411:         approvers: opts.approvers,
+412:         timeoutSeconds: opts.timeoutSeconds,
+413:         idempotencyKey,
+414:       });
+415:       const decision = await this.waitForDecision(
+416:         approval.action_id,
+417:         opts.timeoutSeconds
+418:       );
+419:       if (decision.decision === 'rejected' || decision.status === 'rejected') {
+420:         throw new ApprovalRejected(
+421:           (decision.reason as string) || 'Approval rejected',
+422:           approval.action_id
+423:         );
+424:       }
+425:       return await fn(...args);
+426:     };
+427:   }
+Test inventory:
+40: test('BE control: missing API key fails before network', () => {
+45: test('BE control: approved named and positional arguments execute once and preserve return values', async () => {
+55: test('BE control: rejection blocks the protected action and retains reason/action ID', async () => {
+67: test('BE control: rejection wins a contradictory approved/rejected response', async () => {
+75:   test(`BE error matrix: HTTP ${status} stops execution without an automatic retry`, async () => {
+90: test('BE control: structured validation error survives normalization', async () => {
+95: test('BE control: transport failure stops execution', async () => {
+102: test('BE control: malformed successful JSON stops execution', async () => {
+109: test('BE control: pending decision past deadline throws ApprovalTimeout', async () => {
+116: test('BE control: 404 wait fallback can retrieve a valid approval', async () => {
+123: test('BE control: decision-only response is accepted for backward compatibility', async () => {
+128: test('BE control: separately configured clients and captured wrappers keep their own auth context', async () => {
+142: test('BE control: path and query special characters remain data', async () => {
+154: test('BE property control: seeded JSON values preserve approved and executed intent', async () => {
+164: test('BE control: circular and BigInt arguments fail before request or execution', async () => {
+175: test('BE control: tenant settings and legacy audit list use expected wire shapes', async () => {
+184: test('BE idempotency scope control: replayed approval does not deduplicate wrapped side effects', async () => {
+192: test('BE-001: mutation during approval wait must not change the executed intent', { todo: 'BE-001 mutable approval arguments' }, async () => {
+213: test('BE-002: approval received after deadline must not execute the action', { todo: 'BE-002 local deadline is not enforced on terminal response' }, async () => {
+227: test('BE-002: a stalled request must settle at the approval deadline', { todo: 'BE-002 fetch has no deadline or abort signal' }, async () => {
+241: test('BE-003: lossy non-JSON arguments must fail before approval or execution', { todo: 'BE-003 serializer accepts silently altered values' }, async () => {
+259: test('BE-004: legacy fallback polling must be paced', { todo: 'BE-004 no delay between 404/pending poll attempts' }, async () => {
+269: test('BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions', { timeout: 5000 }, async (t) => {
+321: test('BE-005: plain-text HTTP error retains useful response detail', { todo: 'BE-005 response body is consumed before text fallback' }, async () => {

@@ -1,0 +1,177 @@
+Start: 2026-10-03T01:43:17+00:00
+End: 2026-10-03T01:43:17+00:00
+Command: rg -n -A 12 -B 12 'fromMethods|configure\(|isBaseCallbackHandler|ensureHandler' /private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js /private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js
+Exit: 0
+
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-1-import { __exportAll } from "../_virtual/_rolldown/runtime.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-2-import { getBufferString } from "../messages/utils.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-3-import { v7 } from "../utils/uuid/index.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-4-import { getEnvironmentVariable } from "../utils/env.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js:5:import { BaseCallbackHandler, isBaseCallbackHandler } from "./base.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-6-import { isBaseTracer } from "../tracers/base.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-7-import { ConsoleCallbackHandler } from "../tracers/console.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-8-import { LangChainTracer } from "../tracers/tracer_langchain.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-9-import { consumeCallback } from "../singletons/callbacks.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-10-import "./promises.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-11-import { isTracingEnabled } from "../utils/callbacks.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-12-import { _getConfigureHooks, getContextVariable } from "../singletons/async_local_storage/context.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-13-//#region src/callbacks/manager.ts
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-14-var manager_exports = /* @__PURE__ */ __exportAll({
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-15-	BaseCallbackManager: () => BaseCallbackManager,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-16-	BaseRunManager: () => BaseRunManager,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-17-	CallbackManager: () => CallbackManager,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-18-	CallbackManagerForChainRun: () => CallbackManagerForChainRun,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-19-	CallbackManagerForLLMRun: () => CallbackManagerForLLMRun,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-20-	CallbackManagerForRetrieverRun: () => CallbackManagerForRetrieverRun,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-21-	CallbackManagerForToolRun: () => CallbackManagerForToolRun,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js:22:	ensureHandler: () => ensureHandler,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-23-	parseCallbackConfigArg: () => parseCallbackConfigArg
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-24-});
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-25-function getTracerRunStoreKey(tracer) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-26-	return tracer._getRunStoreKey?.() ?? tracer;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-27-}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-28-function mergeTracerConfig(target, source) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-29-	if (target === source) return target;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-30-	return target.copyWithTracingConfig({
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-31-		metadata: source.tracingMetadata,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-32-		tags: source.tracingTags
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-33-	});
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-34-}
+--
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-497-	static fromHandlers(handlers) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-498-		class Handler extends BaseCallbackHandler {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-499-			name = v7();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-500-			constructor() {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-501-				super();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-502-				Object.assign(this, handlers);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-503-			}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-504-		}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-505-		const manager = new this();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-506-		manager.addHandler(new Handler());
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-507-		return manager;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-508-	}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js:509:	static configure(inheritableHandlers, localHandlers, inheritableTags, localTags, inheritableMetadata, localMetadata, options) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-510-		return this._configureSync(inheritableHandlers, localHandlers, inheritableTags, localTags, inheritableMetadata, localMetadata, options);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-511-	}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-512-	static _configureSync(inheritableHandlers, localHandlers, inheritableTags, localTags, inheritableMetadata, localMetadata, options) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-513-		let callbackManager;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-514-		if (inheritableHandlers || localHandlers) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-515-			if (Array.isArray(inheritableHandlers) || !inheritableHandlers) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-516-				callbackManager = new CallbackManager();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js:517:				callbackManager.setHandlers(inheritableHandlers?.map(ensureHandler) ?? [], true);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-518-			} else callbackManager = inheritableHandlers;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js:519:			callbackManager = callbackManager.copy(Array.isArray(localHandlers) ? localHandlers.map(ensureHandler) : localHandlers?.handlers, false);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-520-		}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-521-		const verboseEnabled = getEnvironmentVariable("LANGCHAIN_VERBOSE") === "true" || options?.verbose;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-522-		const traceableRunTree = LangChainTracer.getTraceableRunTree();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-523-		const tracingV2Enabled = traceableRunTree?.tracingEnabled ?? isTracingEnabled();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-524-		if (traceableRunTree?.tracingEnabled === false && callbackManager) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-525-			const inheritedTracers = callbackManager.handlers.filter((handler) => handler.name === "langchain_tracer");
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-526-			for (const tracer of inheritedTracers) callbackManager.removeHandler(tracer);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-527-		}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-528-		const tracingEnabled = tracingV2Enabled || (getEnvironmentVariable("LANGCHAIN_TRACING") ?? false);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-529-		if (verboseEnabled || tracingEnabled) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-530-			if (!callbackManager) callbackManager = new CallbackManager();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-531-			if (verboseEnabled && !callbackManager.handlers.some((handler) => handler.name === ConsoleCallbackHandler.prototype.name)) {
+--
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-540-			}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-541-			if (tracingV2Enabled) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-542-				if (traceableRunTree && callbackManager._parentRunId === void 0) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-543-					callbackManager._parentRunId = traceableRunTree.id;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-544-					callbackManager.handlers.find((handler) => handler.name === "langchain_tracer")?.updateFromRunTree(traceableRunTree);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-545-				}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-546-			}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-547-		}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-548-		for (const { contextVar, inheritable = true, handlerClass, envVar } of _getConfigureHooks()) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-549-			const createIfNotInContext = envVar && getEnvironmentVariable(envVar) === "true" && handlerClass;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-550-			let handler;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-551-			const contextVarValue = contextVar !== void 0 ? getContextVariable(contextVar) : void 0;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js:552:			if (contextVarValue && isBaseCallbackHandler(contextVarValue)) handler = contextVarValue;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-553-			else if (createIfNotInContext) handler = new handlerClass({});
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-554-			if (handler !== void 0) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-555-				if (!callbackManager) callbackManager = new CallbackManager();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-556-				if (!callbackManager.handlers.some((h) => h.name === handler.name)) callbackManager.addHandler(handler, inheritable);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-557-			}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-558-		}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-559-		if (inheritableTags || localTags) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-560-			if (callbackManager) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-561-				callbackManager.addTags(inheritableTags ?? []);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-562-				callbackManager.addTags(localTags ?? [], false);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-563-			}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-564-		}
+--
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-585-			};
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-586-			callbackManager.handlers = callbackManager.handlers.map(applyTracingConfig);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-587-			callbackManager.inheritableHandlers = callbackManager.inheritableHandlers.map(applyTracingConfig);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-588-		}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-589-		if (callbackManager) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-590-			const coalesced = coalesceTracers(callbackManager.handlers, callbackManager.inheritableHandlers);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-591-			callbackManager.handlers = coalesced.handlers;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-592-			callbackManager.inheritableHandlers = coalesced.inheritableHandlers;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-593-		}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-594-		return callbackManager;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-595-	}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-596-};
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js:597:function ensureHandler(handler) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-598-	if ("name" in handler) return handler;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js:599:	return BaseCallbackHandler.fromMethods(handler);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-600-}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-601-//#endregion
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js:602:export { BaseCallbackManager, BaseRunManager, CallbackManager, CallbackManagerForChainRun, CallbackManagerForLLMRun, CallbackManagerForRetrieverRun, CallbackManagerForToolRun, ensureHandler, manager_exports, parseCallbackConfigArg };
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-603-
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/manager.js-604-//# sourceMappingURL=manager.js.map
+--
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-1-import { __exportAll } from "../_virtual/_rolldown/runtime.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-2-import { Serializable, get_lc_unique_name } from "../load/serializable.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-3-import { v7 } from "../utils/uuid/index.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-4-import { getEnvironmentVariable } from "../utils/env.js";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-5-//#region src/callbacks/base.ts
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-6-var base_exports = /* @__PURE__ */ __exportAll({
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-7-	BaseCallbackHandler: () => BaseCallbackHandler,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-8-	callbackHandlerPrefersChatModelStreamEvents: () => callbackHandlerPrefersChatModelStreamEvents,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-9-	callbackHandlerPrefersStreaming: () => callbackHandlerPrefersStreaming,
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js:10:	isBaseCallbackHandler: () => isBaseCallbackHandler
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-11-});
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-12-/**
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-13-* Abstract class that provides a set of optional methods that can be
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-14-* overridden in derived classes to handle various events during the
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-15-* execution of a LangChain application.
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-16-*/
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-17-var BaseCallbackHandlerMethodsClass = class {};
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-18-function callbackHandlerPrefersStreaming(x) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-19-	return "lc_prefer_streaming" in x && x.lc_prefer_streaming;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-20-}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-21-function callbackHandlerPrefersChatModelStreamEvents(x) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-22-	return "lc_prefer_chat_model_stream_events" in x && x.lc_prefer_chat_model_stream_events;
+--
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-76-			this.awaitHandlers = this.raiseError || (input._awaitHandler ?? this.awaitHandlers);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-77-		}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-78-	}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-79-	copy() {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-80-		return new this.constructor(this);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-81-	}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-82-	toJSON() {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-83-		return Serializable.prototype.toJSON.call(this);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-84-	}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-85-	toJSONNotImplemented() {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-86-		return Serializable.prototype.toJSONNotImplemented.call(this);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-87-	}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js:88:	static fromMethods(methods) {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-89-		class Handler extends BaseCallbackHandler {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-90-			name = v7();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-91-			constructor() {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-92-				super();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-93-				Object.assign(this, methods);
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-94-			}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-95-		}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-96-		return new Handler();
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-97-	}
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-98-};
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js:99:const isBaseCallbackHandler = (x) => {
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-100-	const callbackHandler = x;
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-101-	return callbackHandler !== void 0 && typeof callbackHandler.copy === "function" && typeof callbackHandler.name === "string" && typeof callbackHandler.awaitHandlers === "boolean";
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-102-};
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-103-//#endregion
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js:104:export { BaseCallbackHandler, base_exports, callbackHandlerPrefersChatModelStreamEvents, callbackHandlerPrefersStreaming, isBaseCallbackHandler };
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-105-
+/private/tmp/sentinel-qa-tools/node_modules/@langchain/core/dist/callbacks/base.js-106-//# sourceMappingURL=base.js.map

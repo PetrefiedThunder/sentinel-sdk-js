@@ -1,0 +1,21 @@
+Start: 2026-10-03T01:47:58+00:00
+End: 2026-10-03T01:47:58+00:00
+Command: node --test tests/qa/frontend-langchain.integration.test.mjs
+Exit: 0
+
+﹣ FE-001 real LangChain tool requests approval before executing (0.346958ms) # Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+﹣ FE-001 real LangChain rejection blocks execution (0.049333ms) # Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+﹣ FE-001 enabling callback alone still swallows rejection (0.035458ms) # Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+﹣ LangChain control: callback enabled and raiseError propagates rejection (0.032875ms) # Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+﹣ FE-001 real LangChain timeout blocks execution (0.041375ms) # Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+﹣ FE-001 enabling callback alone still swallows timeout (0.031167ms) # Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+﹣ LangChain control: callback enabled and raiseError propagates timeout (0.031375ms) # Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+﹣ LangChain control: callback enabled and approval allows one execution (0.029583ms) # Optional @langchain/core is not installed; see FRONTEND-REPORT.md
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 8
+ℹ todo 0
+ℹ duration_ms 42.607083

@@ -1,0 +1,168 @@
+Start: 2026-10-03T01:44:45+00:00
+End: 2026-10-03T01:44:45+00:00
+Command: node --test tests/qa/backend-core.test.mjs
+Exit: 0
+
+✔ BE control: missing API key fails before network (0.66925ms)
+✔ BE control: approved named and positional arguments execute once and preserve return values (1.658291ms)
+✔ BE control: rejection blocks the protected action and retains reason/action ID (0.908667ms)
+✔ BE control: rejection wins a contradictory approved/rejected response (0.370125ms)
+✔ BE error matrix: HTTP 401 stops execution without an automatic retry (0.284208ms)
+✔ BE error matrix: HTTP 403 stops execution without an automatic retry (0.172583ms)
+✔ BE error matrix: HTTP 409 stops execution without an automatic retry (0.12675ms)
+✔ BE error matrix: HTTP 422 stops execution without an automatic retry (0.127166ms)
+✔ BE error matrix: HTTP 429 stops execution without an automatic retry (0.239125ms)
+✔ BE error matrix: HTTP 500 stops execution without an automatic retry (0.113042ms)
+✔ BE error matrix: HTTP 503 stops execution without an automatic retry (0.095917ms)
+✔ BE control: structured validation error survives normalization (0.233625ms)
+✔ BE control: transport failure stops execution (0.100208ms)
+✔ BE control: malformed successful JSON stops execution (0.08725ms)
+✔ BE control: pending decision past deadline throws ApprovalTimeout (0.092208ms)
+✔ BE control: 404 wait fallback can retrieve a valid approval (0.142875ms)
+✔ BE control: decision-only response is accepted for backward compatibility (0.075333ms)
+✔ BE control: separately configured clients and captured wrappers keep their own auth context (0.4385ms)
+✔ BE control: path and query special characters remain data (0.939459ms)
+✔ BE property control: seeded JSON values preserve approved and executed intent (3.177334ms)
+✔ BE control: circular and BigInt arguments fail before request or execution (3.867625ms)
+✔ BE control: tenant settings and legacy audit list use expected wire shapes (0.286292ms)
+✔ BE idempotency scope control: replayed approval does not deduplicate wrapped side effects (0.195042ms)
+⚠ BE-001: mutation during approval wait must not change the executed intent (0.8015ms) # BE-001 mutable approval arguments
+⚠ BE-002: approval received after deadline must not execute the action (0.1685ms) # BE-002 local deadline is not enforced on terminal response
+⚠ BE-002: a stalled request must settle at the approval deadline (81.865209ms) # BE-002 fetch has no deadline or abort signal
+⚠ BE-003: lossy non-JSON arguments must fail before approval or execution (0.623375ms) # BE-003 serializer accepts silently altered values
+⚠ BE-004: legacy fallback polling must be paced (101.596875ms) # BE-004 no delay between 404/pending poll attempts
+✔ BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions (24.771583ms)
+⚠ BE-005: plain-text HTTP error retains useful response detail (0.407709ms) # BE-005 response body is consumed before text fallback
+ℹ tests 30
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 6
+ℹ duration_ms 291.788292
+
+✖ failing tests:
+
+test at tests/qa/backend-core.test.mjs:192:1
+⚠ BE-001: mutation during approval wait must not change the executed intent (0.8015ms) # BE-001 mutable approval arguments
+  AssertionError [ERR_ASSERTION]: executed payload must match the human-reviewed request
+  + actual - expected
+  
+    {
+      transfer: {
+  +     amount: 999,
+  +     recipient: 'qa-changed'
+  -     amount: 1,
+  -     recipient: 'qa-reviewed'
+      }
+    }
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:210:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { transfer: { amount: 999, recipient: 'qa-changed' } },
+    expected: { transfer: { amount: 1, recipient: 'qa-reviewed' } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/backend-core.test.mjs:213:1
+⚠ BE-002: approval received after deadline must not execute the action (0.1685ms) # BE-002 local deadline is not enforced on terminal response
+  AssertionError [ERR_ASSERTION]: a late approval must not run the protected action
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:223:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/backend-core.test.mjs:227:1
+⚠ BE-002: a stalled request must settle at the approval deadline (81.865209ms) # BE-002 fetch has no deadline or abort signal
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'still-pending'
+  - 'timeout'
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:238:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'still-pending',
+    expected: 'timeout',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/backend-core.test.mjs:241:1
+⚠ BE-003: lossy non-JSON arguments must fail before approval or execution (0.623375ms) # BE-003 serializer accepts silently altered values
+  AssertionError [ERR_ASSERTION]: silently omitted or changed data must not execute under a different approved payload
+  + actual - expected
+  
+  + [
+  +   'amount',
+  +   'amount',
+  +   'hidden',
+  +   'targets',
+  +   'targets',
+  +   'operation'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:255:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'amount', 'amount', 'hidden', 'targets', 'targets', 'operation' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/qa/backend-core.test.mjs:259:1
+⚠ BE-004: legacy fallback polling must be paced (101.596875ms) # BE-004 no delay between 404/pending poll attempts
+  AssertionError [ERR_ASSERTION]: 100 ms polling window made 44 requests; fallback must be paced
+      at TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:266:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/qa/backend-core.test.mjs:321:1
+⚠ BE-005: plain-text HTTP error retains useful response detail (0.407709ms) # BE-005 response body is consumed before text fallback
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Synthetic gateway unavailable/. Input:
+  
+  '[502] '
+  
+      at Object.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:326:12)
+      at expectedException (node:assert:547:17)
+      at expectsError (node:assert:672:21)
+      at strict.rejects (node:assert:738:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js/tests/qa/backend-core.test.mjs:323:3)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '[502] ',
+    expected: /Synthetic gateway unavailable/,
+    operator: 'match',
+    diff: 'simple'
+  }

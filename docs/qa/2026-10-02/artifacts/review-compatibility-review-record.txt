@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:49:19+00:00
+End: 2026-10-03T01:49:19+00:00
+Command: python3 -c 'from pathlib import Path; import datetime; p=Path("docs/qa/2026-10-02/REVIEW-LOG.md"); t=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"); p.open("a").write("\n### "+t+" — compatibility review and document update\n\nTool: apply_patch. Confirmed package description/explicit test-file list corrections and replacement of BE-004 timing probe. Flagged Node18 failing-TODO exit behavior after isolated independent reproduction. Outcome: compatibility adjustment requested; final evidence pending.\n"); print("Compatibility review recorded.")'
+Exit: 0
+
+Compatibility review recorded.

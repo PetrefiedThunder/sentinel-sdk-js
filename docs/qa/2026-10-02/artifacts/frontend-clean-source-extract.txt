@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:44:40+00:00
+End: 2026-10-03T01:44:40+00:00
+Command: python3 -c 'import tarfile; from pathlib import Path; p=Path("/private/tmp/sentinel-qa-clean-source"); p.mkdir(exist_ok=True); tarfile.open("/private/tmp/sentinel-qa-clean-source.tar").extractall(p, filter="data"); print("Clean tracked source extracted; dist exists:", (p/"dist").exists())'
+Exit: 0
+
+Clean tracked source extracted; dist exists: False

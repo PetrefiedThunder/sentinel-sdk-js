@@ -1,0 +1,6 @@
+Start: 2026-10-03T01:45:10+00:00
+End: 2026-10-03T01:45:10+00:00
+Command: git clone --depth 1 --single-branch --branch qa/2026-10-02-sweep file:///Users/sellers/Projects/qa-sweep-2026-10-02/sentinel-sdk-js /private/tmp/sentinel-qa-local-shallow-source
+Exit: 0
+
+Cloning into '/private/tmp/sentinel-qa-local-shallow-source'...

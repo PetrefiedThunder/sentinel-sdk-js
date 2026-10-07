@@ -1,0 +1,8 @@
+Start: 2026-10-03T01:52:11+00:00
+End: 2026-10-03T01:52:11+00:00
+Command: python3 -
+Exit: 0
+
+Missing markdown link targets: []
+Findings table rows: 13
+Mandatory files: {'PLAN.md': True, 'SESSION-LOG.md': False, 'FINDINGS.md': True, 'COVERAGE.md': True, 'SUMMARY.md': True}
