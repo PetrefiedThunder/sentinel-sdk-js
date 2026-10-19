@@ -178,6 +178,13 @@ function buildQuery(
   return parts.length ? `?${parts.join('&')}` : '';
 }
 
+/**
+ * Delay between legacy fallback status polls when the server-side long-poll
+ * route (`/wait`) is unavailable. The fallback yields to a real timer so it
+ * holds a bounded cadence instead of busy-looping fetch requests.
+ */
+const FALLBACK_POLL_INTERVAL_MS = 2000;
+
 // ── Client ─────────────────────────────────────────────────────────
 export class SentinelClient {
   private readonly apiKey: string;
@@ -342,7 +349,8 @@ export class SentinelClient {
    * Block until the approval is decided or the timeout elapses. Uses the
    * server-side long-poll endpoint when available (single RTT per ~30 s
    * window via Postgres LISTEN/NOTIFY); falls back to plain polling on older
-   * servers that don't have /wait.
+   * servers that don't have /wait. Once /wait answers 404 the fallback stops
+   * retrying it and polls status on a bounded cadence instead.
    */
   async waitForDecision(
     actionId: string,
@@ -351,33 +359,51 @@ export class SentinelClient {
     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
     const deadline = Date.now() + timeout * 1000;
     const timeoutError = () => new ApprovalTimeout(actionId, timeout);
+    let waitUnavailable = false;
     while (true) {
-      const remaining = Math.max(
-        1,
-        Math.min(30, Math.floor((deadline - Date.now()) / 1000))
-      );
+      if (Date.now() >= deadline) throw timeoutError();
       let data: ApprovalRecord;
-      try {
+      if (waitUnavailable) {
         data = await this.requestUntil<ApprovalRecord>(
-          `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`,
+          `/v1/approvals/${encodeURIComponent(actionId)}`,
           deadline,
           timeoutError
         );
-      } catch (e) {
-        if (e instanceof SentinelAPIError && e.statusCode === 404) {
+      } else {
+        const remaining = Math.max(
+          1,
+          Math.min(30, Math.floor((deadline - Date.now()) / 1000))
+        );
+        try {
           data = await this.requestUntil<ApprovalRecord>(
-            `/v1/approvals/${encodeURIComponent(actionId)}`,
+            `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`,
             deadline,
             timeoutError
           );
-        } else {
-          throw e;
+        } catch (e) {
+          if (e instanceof SentinelAPIError && e.statusCode === 404) {
+            waitUnavailable = true;
+            data = await this.requestUntil<ApprovalRecord>(
+              `/v1/approvals/${encodeURIComponent(actionId)}`,
+              deadline,
+              timeoutError
+            );
+          } else {
+            throw e;
+          }
         }
       }
+      if (Date.now() >= deadline) throw timeoutError();
       const status = data.status ?? data.decision;
       if (status === 'approved' || status === 'rejected') return data;
-      if (Date.now() >= deadline) {
-        throw timeoutError();
+      if (waitUnavailable) {
+        const delay = Math.min(
+          FALLBACK_POLL_INTERVAL_MS,
+          Math.max(0, deadline - Date.now())
+        );
+        if (delay > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
     }
   }
