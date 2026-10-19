@@ -114,10 +114,21 @@ export class ApprovalTimeout extends SentinelError {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
-/** Fail-fast if args can't be JSON-encoded. Mirrors Python SDK 0.1.8 fix. */
+/**
+ * Fail-fast if args can't be JSON-encoded. Mirrors Python SDK 0.1.8 fix.
+ *
+ * `JSON.stringify` throws for BigInt and circular refs, but a Map or Set
+ * becomes `{}` and its entries never appear in the approval body. Reject
+ * those containers here so a request is not created from a lossy payload.
+ */
 export function ensureJsonSerializable(value: unknown): void {
   try {
-    JSON.stringify(value);
+    JSON.stringify(value, (_key, nested) => {
+      if (nested instanceof Map || nested instanceof Set) {
+        throw new TypeError(nested instanceof Map ? 'Map' : 'Set');
+      }
+      return nested;
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new TypeError(
