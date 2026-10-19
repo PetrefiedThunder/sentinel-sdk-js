@@ -257,7 +257,7 @@ test('BE-003: lossy non-JSON arguments must fail before approval or execution', 
   assert.equal(requests.length, 0);
 });
 
-test('BE-004: legacy fallback polling must be paced', { ...knownDefect('BE-004 no delay between 404/pending poll attempts') }, async () => {
+test('BE control: legacy fallback polls at a bounded cadence without retrying /wait', async () => {
   let now = 1000;
   Date.now = () => now;
   respond(({ url }, number) => {
@@ -268,9 +268,11 @@ test('BE-004: legacy fallback polling must be paced', { ...knownDefect('BE-004 n
   // Flush async fetch/JSON microtasks while deliberately never yielding to timers.
   for (let index = 0; index < 200; index++) await Promise.resolve();
   const beforeTimerTurn = requests.length;
-  now = 3000; // A paced implementation can exit at its next deadline check.
+  const waitAttempts = requests.filter(({ url }) => url.includes('/wait?')).length;
+  now = 3000; // A paced implementation exits at its next deadline check.
   await result;
   assert.ok(beforeTimerTurn <= 2, `${beforeTimerTurn} requests ran before a timer/event-loop turn; fallback must be paced`);
+  assert.equal(waitAttempts, 1, 'an unavailable /wait must not be retried on every status iteration');
 });
 
 test('BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions', { timeout: 5000 }, async (t) => {
