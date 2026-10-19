@@ -225,7 +225,7 @@ test('BE-002: approval received after deadline must not execute the action', { .
   assert.ok(result instanceof ApprovalTimeout);
 });
 
-test('BE-002: a stalled request must settle at the approval deadline', { ...knownDefect('BE-002 fetch has no deadline or abort signal') }, async () => {
+test('BE-002: a stalled request must settle at the approval deadline', async () => {
   let release;
   respond(() => new Promise((resolve) => { release = () => resolve(json(approved)); }));
   const result = makeClient().waitForDecision('qa-action', 0.01).then(
@@ -237,6 +237,36 @@ test('BE-002: a stalled request must settle at the approval deadline', { ...know
   release();
   await result;
   assert.equal(observed, 'timeout');
+  assert.equal(requests[0].init.signal.aborted, true);
+});
+
+test('BE-002: a stalled loopback request rejects and aborts at the deadline', { timeout: 5000 }, async (t) => {
+  let closed = false;
+  const server = createServer((request) => {
+    request.on('close', () => { closed = true; });
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  });
+  const address = server.address();
+  globalThis.fetch = originalFetch;
+  const started = Date.now();
+  await assert.rejects(
+    makeClient({ apiUrl: `http://127.0.0.1:${address.port}` }).waitForDecision('qa-action', 0.05),
+    ApprovalTimeout,
+  );
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed < 1000, `stalled request stayed open for ${elapsed}ms`);
+  const closeDeadline = Date.now() + 500;
+  while (!closed && Date.now() < closeDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(closed, true);
 });
 
 test('BE-003: lossy non-JSON arguments must fail before approval or execution', { ...knownDefect('BE-003 serializer accepts silently altered values') }, async () => {

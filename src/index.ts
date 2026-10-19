@@ -189,6 +189,7 @@ export class SentinelClient {
     path: string,
     init: RequestInit = {}
   ): Promise<T> {
+    init.signal?.throwIfAborted();
     const url = `${this.apiUrl}${path}`;
     const r = await fetch(url, {
       ...init,
@@ -213,6 +214,45 @@ export class SentinelClient {
       throw new SentinelAPIError(r.status, detail, url);
     }
     return (await r.json()) as T;
+  }
+
+  // Bound one call by `deadline`. Abort the socket, and still reject if fetch ignores the signal.
+  private async requestUntil<T>(
+    path: string,
+    deadline: number,
+    timeoutError: () => ApprovalTimeout,
+    init: RequestInit = {}
+  ): Promise<T> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<never>((_, reject) => {
+      const expire = () => {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs > 0) {
+          timer = setTimeout(expire, Math.min(remainingMs, 2_147_483_647));
+          return;
+        }
+        const error = timeoutError();
+        controller.abort(error);
+        reject(error);
+      };
+      expire();
+    });
+    const pending = this.request<T>(path, {
+      ...init,
+      signal: controller.signal,
+    }).then(
+      (value) => value,
+      (error: unknown) => {
+        if (controller.signal.aborted) return new Promise<T>(() => {});
+        throw error;
+      }
+    );
+    try {
+      return await Promise.race([pending, expired]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   // ---- approvals ----
@@ -299,6 +339,7 @@ export class SentinelClient {
   ): Promise<ApprovalRecord> {
     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
     const deadline = Date.now() + timeout * 1000;
+    const timeoutError = () => new ApprovalTimeout(actionId, timeout);
     while (true) {
       const remaining = Math.max(
         1,
@@ -306,12 +347,18 @@ export class SentinelClient {
       );
       let data: ApprovalRecord;
       try {
-        data = await this.request<ApprovalRecord>(
-          `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`
+        data = await this.requestUntil<ApprovalRecord>(
+          `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`,
+          deadline,
+          timeoutError
         );
       } catch (e) {
         if (e instanceof SentinelAPIError && e.statusCode === 404) {
-          data = await this.getApproval(actionId);
+          data = await this.requestUntil<ApprovalRecord>(
+            `/v1/approvals/${encodeURIComponent(actionId)}`,
+            deadline,
+            timeoutError
+          );
         } else {
           throw e;
         }
@@ -319,7 +366,7 @@ export class SentinelClient {
       const status = data.status ?? data.decision;
       if (status === 'approved' || status === 'rejected') return data;
       if (Date.now() >= deadline) {
-        throw new ApprovalTimeout(actionId, timeout);
+        throw timeoutError();
       }
     }
   }
