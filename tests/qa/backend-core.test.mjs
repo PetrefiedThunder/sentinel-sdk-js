@@ -10,6 +10,7 @@ import {
 
 const originalFetch = globalThis.fetch;
 const originalNow = Date.now;
+const originalSetTimeout = globalThis.setTimeout;
 const apiUrl = 'http://127.0.0.1:1'; // No listener: unexpected real I/O fails locally.
 const pending = { action_id: 'qa-action', status: 'pending', decision: 'pending' };
 const approved = { ...pending, status: 'approved', decision: 'approved' };
@@ -28,6 +29,7 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = originalFetch;
   Date.now = originalNow;
+  globalThis.setTimeout = originalSetTimeout;
 });
 
 function respond(handler) {
@@ -211,7 +213,7 @@ test('BE-001: mutation during approval wait must not change the executed intent'
   assert.deepEqual(executed, reviewed, 'executed payload must match the human-reviewed request');
 });
 
-test('BE-002: approval received after deadline must not execute the action', { ...knownDefect('BE-002 local deadline is not enforced on terminal response') }, async () => {
+test('BE-002: approval received after deadline must not execute the action', async () => {
   let now = 1000;
   Date.now = () => now;
   respond(({ init }) => {
@@ -225,7 +227,7 @@ test('BE-002: approval received after deadline must not execute the action', { .
   assert.ok(result instanceof ApprovalTimeout);
 });
 
-test('BE-002: a stalled request must settle at the approval deadline', { ...knownDefect('BE-002 fetch has no deadline or abort signal') }, async () => {
+test('BE-002: a stalled request must settle at the approval deadline', async () => {
   let release;
   respond(() => new Promise((resolve) => { release = () => resolve(json(approved)); }));
   const result = makeClient().waitForDecision('qa-action', 0.01).then(
@@ -237,6 +239,60 @@ test('BE-002: a stalled request must settle at the approval deadline', { ...know
   release();
   await result;
   assert.equal(observed, 'timeout');
+  assert.equal(requests[0].init.signal.aborted, true);
+});
+
+test('BE-002: a stalled legacy status request aborts at the deadline', async () => {
+  let now = 1000;
+  Date.now = () => now;
+  globalThis.setTimeout = (callback, delay, ...args) => originalSetTimeout(() => {
+    now += delay;
+    callback(...args);
+  }, 0);
+  let release;
+  respond(({ url }) => url.includes('/wait?')
+    ? json({ detail: 'No wait route' }, 404)
+    : new Promise((resolve) => { release = () => resolve(json(approved)); }));
+  const result = makeClient().waitForDecision('qa-action', 1).catch((error) => error);
+  let watchdog;
+  const outcome = await Promise.race([
+    result,
+    new Promise((resolve) => { watchdog = originalSetTimeout(() => resolve('still-pending'), 100); }),
+  ]);
+  clearTimeout(watchdog);
+  release?.();
+  assert.ok(outcome instanceof ApprovalTimeout);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].init.signal.aborted, true);
+});
+
+test('BE-002: a stalled loopback request rejects and aborts at the deadline', { timeout: 5000 }, async (t) => {
+  let closed = false;
+  const server = createServer((request) => {
+    request.on('close', () => { closed = true; });
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  });
+  const address = server.address();
+  globalThis.fetch = originalFetch;
+  const started = Date.now();
+  await assert.rejects(
+    makeClient({ apiUrl: `http://127.0.0.1:${address.port}` }).waitForDecision('qa-action', 0.05),
+    ApprovalTimeout,
+  );
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed < 1000, `stalled request stayed open for ${elapsed}ms`);
+  const closeDeadline = Date.now() + 500;
+  while (!closed && Date.now() < closeDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(closed, true);
 });
 
 test('BE-003: lossy non-JSON arguments must fail before approval or execution', { ...knownDefect('BE-003 serializer accepts silently altered values') }, async () => {
@@ -260,19 +316,30 @@ test('BE-003: lossy non-JSON arguments must fail before approval or execution', 
 test('BE control: legacy fallback polls at a bounded cadence without retrying /wait', async () => {
   let now = 1000;
   Date.now = () => now;
+  const timerDelays = [];
+  const statusFetchTimes = [];
+  globalThis.setTimeout = (callback, delay, ...args) => originalSetTimeout(() => {
+    timerDelays.push(delay);
+    now += delay;
+    callback(...args);
+  }, 0);
   respond(({ url }, number) => {
-    // The sixth request terminates an unpaced loop; no socket or timer is used.
-    return url.includes('/wait?') ? json({ detail: 'No wait route' }, 404) : json(number >= 6 ? approved : pending);
+    if (url.includes('/wait?')) return json({ detail: 'No wait route' }, 404);
+    statusFetchTimes.push(now);
+    // A post-deadline fetch would return approval and violate the timeout.
+    return json(number >= 4 ? approved : pending);
   });
-  const result = makeClient().waitForDecision('qa-action', 1).catch((error) => error);
+  const result = makeClient().waitForDecision('qa-action', 3).catch((error) => error);
   // Flush async fetch/JSON microtasks while deliberately never yielding to timers.
   for (let index = 0; index < 200; index++) await Promise.resolve();
   const beforeTimerTurn = requests.length;
+  const outcome = await result;
   const waitAttempts = requests.filter(({ url }) => url.includes('/wait?')).length;
-  now = 3000; // A paced implementation exits at its next deadline check.
-  await result;
   assert.ok(beforeTimerTurn <= 2, `${beforeTimerTurn} requests ran before a timer/event-loop turn; fallback must be paced`);
   assert.equal(waitAttempts, 1, 'an unavailable /wait must not be retried on every status iteration');
+  assert.ok(outcome instanceof ApprovalTimeout);
+  assert.deepEqual(timerDelays, [2000, 1000]);
+  assert.deepEqual(statusFetchTimes, [1000, 3000], 'status must not be fetched after the deadline');
 });
 
 test('BE loopback contract: real HTTP preserves approval payload/auth and rejects unauthorized actions', { timeout: 5000 }, async (t) => {

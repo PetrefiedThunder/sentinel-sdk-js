@@ -114,10 +114,21 @@ export class ApprovalTimeout extends SentinelError {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
-/** Fail-fast if args can't be JSON-encoded. Mirrors Python SDK 0.1.8 fix. */
+/**
+ * Fail-fast if args can't be JSON-encoded. Mirrors Python SDK 0.1.8 fix.
+ *
+ * `JSON.stringify` throws for BigInt and circular refs, but a Map or Set
+ * becomes `{}` and its entries never appear in the approval body. Reject
+ * those containers here so a request is not created from a lossy payload.
+ */
 export function ensureJsonSerializable(value: unknown): void {
   try {
-    JSON.stringify(value);
+    JSON.stringify(value, (_key, nested) => {
+      if (nested instanceof Map || nested instanceof Set) {
+        throw new TypeError(nested instanceof Map ? 'Map' : 'Set');
+      }
+      return nested;
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new TypeError(
@@ -174,14 +185,6 @@ function buildQuery(
  */
 const FALLBACK_POLL_INTERVAL_MS = 2000;
 
-// Narrow local timer declaration: this universal module must stay free of
-// `node:` imports, and the global is not visible to the current toolchain
-// (the pre-existing `fetch`/`RequestInit` names below resolve the same way).
-declare const setTimeout: (
-  callback: (...args: any[]) => void,
-  ms?: number
-) => unknown;
-
 // ── Client ─────────────────────────────────────────────────────────
 export class SentinelClient {
   private readonly apiKey: string;
@@ -204,6 +207,7 @@ export class SentinelClient {
     path: string,
     init: RequestInit = {}
   ): Promise<T> {
+    init.signal?.throwIfAborted();
     const url = `${this.apiUrl}${path}`;
     const r = await fetch(url, {
       ...init,
@@ -228,6 +232,45 @@ export class SentinelClient {
       throw new SentinelAPIError(r.status, detail, url);
     }
     return (await r.json()) as T;
+  }
+
+  // Bound one call by `deadline`. Abort the socket, and still reject if fetch ignores the signal.
+  private async requestUntil<T>(
+    path: string,
+    deadline: number,
+    timeoutError: () => ApprovalTimeout,
+    init: RequestInit = {}
+  ): Promise<T> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<never>((_, reject) => {
+      const expire = () => {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs > 0) {
+          timer = setTimeout(expire, Math.min(remainingMs, 2_147_483_647));
+          return;
+        }
+        const error = timeoutError();
+        controller.abort(error);
+        reject(error);
+      };
+      expire();
+    });
+    const pending = this.request<T>(path, {
+      ...init,
+      signal: controller.signal,
+    }).then(
+      (value) => value,
+      (error: unknown) => {
+        if (controller.signal.aborted) return new Promise<T>(() => {});
+        throw error;
+      }
+    );
+    try {
+      return await Promise.race([pending, expired]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   // ---- approvals ----
@@ -315,34 +358,44 @@ export class SentinelClient {
   ): Promise<ApprovalRecord> {
     const timeout = timeoutSeconds ?? this.defaultTimeoutSeconds;
     const deadline = Date.now() + timeout * 1000;
+    const timeoutError = () => new ApprovalTimeout(actionId, timeout);
     let waitUnavailable = false;
     while (true) {
+      if (Date.now() >= deadline) throw timeoutError();
       let data: ApprovalRecord;
       if (waitUnavailable) {
-        data = await this.getApproval(actionId);
+        data = await this.requestUntil<ApprovalRecord>(
+          `/v1/approvals/${encodeURIComponent(actionId)}`,
+          deadline,
+          timeoutError
+        );
       } else {
         const remaining = Math.max(
           1,
           Math.min(30, Math.floor((deadline - Date.now()) / 1000))
         );
         try {
-          data = await this.request<ApprovalRecord>(
-            `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`
+          data = await this.requestUntil<ApprovalRecord>(
+            `/v1/approvals/${encodeURIComponent(actionId)}/wait?timeout=${remaining}`,
+            deadline,
+            timeoutError
           );
         } catch (e) {
           if (e instanceof SentinelAPIError && e.statusCode === 404) {
             waitUnavailable = true;
-            data = await this.getApproval(actionId);
+            data = await this.requestUntil<ApprovalRecord>(
+              `/v1/approvals/${encodeURIComponent(actionId)}`,
+              deadline,
+              timeoutError
+            );
           } else {
             throw e;
           }
         }
       }
+      if (Date.now() >= deadline) throw timeoutError();
       const status = data.status ?? data.decision;
       if (status === 'approved' || status === 'rejected') return data;
-      if (Date.now() >= deadline) {
-        throw new ApprovalTimeout(actionId, timeout);
-      }
       if (waitUnavailable) {
         const delay = Math.min(
           FALLBACK_POLL_INTERVAL_MS,
