@@ -8,7 +8,7 @@ updates:
     labels:
       - "dependencies"
     ignore:
-      # TypeScript 7 breaks the Next 15.5 build and causes an npm ERESOLVE peer conflict
+      # TypeScript 7 conflicts with openapi-typescript's typescript peer range (npm ERESOLVE)
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
